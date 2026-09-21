@@ -11,18 +11,18 @@ Conserva presets, progreso, errores, cancelación y modo rápido opcional de has
 ## Desarrollo y verificación
 
 ```sh
-npm ci
-npm run dev
-npm run lint
-npx tsc -b
-npm run build
-node --test compressor.test.mjs platform.test.mjs
-npm run preview
+bun install
+bun run dev
+bun run lint
+bunx tsc -b
+bun run build
+bun test compressor.test.mjs platform.test.mjs
+bun run preview
 ```
 
 `build` también ejecuta los checks de TypeScript. Usa el servidor preview para probar producción, no abras `dist/index.html` directamente.
 
-Las pruebas usan `node:test`, TypeScript y mocks, sin otro framework. Las del motor cubren progreso, reutilización, reintentos, cancelación y liberación; no ejecutan FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión real, los workers, WebAssembly y la descarga requieren una prueba en navegador.
+Las pruebas usan `bun test`, TypeScript y mocks, sin otro framework. Las del motor cubren progreso, reutilización, reintentos, cancelación y liberación; no ejecutan FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión real, los workers, WebAssembly y la descarga requieren una prueba en navegador.
 
 ## Estructura y límites
 
