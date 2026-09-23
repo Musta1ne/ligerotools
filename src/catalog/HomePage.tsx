@@ -11,7 +11,7 @@ export function HomePage() {
       <a className="catalog-jump" href="#herramientas">Explorar herramientas <ArrowRight size={17} aria-hidden="true" /></a>
     </section>
     <section className="catalog-section" id="herramientas" aria-labelledby="catalog-title">
-      <div className="catalog-heading"><div><span className="eyebrow">TU CAJA DE HERRAMIENTAS</span><h2 id="catalog-title">Herramientas disponibles</h2></div><span>{tools.length} disponible{tools.length === 1 ? '' : 's'}</span></div>
+      <div className="catalog-heading"><div><span className="eyebrow">TU CAJA DE HERRAMIENTAS</span><h2 id="catalog-title">Herramientas disponibles</h2></div><span>{tools.length} disponible{Number(tools.length) === 1 ? '' : 's'}</span></div>
       <ul className="tool-grid">
         {tools.map((tool) => <li key={tool.id}>
           <AppLink className="tool-card" href={tool.path}>
@@ -22,6 +22,6 @@ export function HomePage() {
         </li>)}
       </ul>
     </section>
-    <section className="catalog-note" aria-labelledby="catalog-note-title"><h2 id="catalog-note-title">Una tarea. Una herramienta.</h2><p>Empieza con el compresor de video: selecciona tu archivo, define el tamaño objetivo y descarga el resultado. Las opciones y los límites se explican dentro de la herramienta.</p></section>
+    <section className="catalog-note" aria-labelledby="catalog-note-title"><h2 id="catalog-note-title">Una tarea. Una herramienta.</h2><p>El compresor reduce el peso y el recortador deja un tramo: selecciona tu archivo, ajusta las opciones de esa herramienta y descarga el resultado. Los límites se explican dentro.</p></section>
   </>
 }

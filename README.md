@@ -1,12 +1,16 @@
 # Ligero.Tools
 
-Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`; por ahora solo está disponible el compresor en `/comprimir-video`. No hay backend, cuentas, base de datos ni dependencias nuevas para la plataforma.
+Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`. Están disponibles el compresor en `/comprimir-video` y el recortador en `/recortar-video`. No hay backend, cuentas, base de datos ni dependencias nuevas para la plataforma.
 
 ## Compresor
 
 Ligero.Compressor procesa videos localmente con FFmpeg.wasm. Acepta un video de hasta 500 MB, permite elegir un presupuesto en MB decimales y descargar MP4 (H.264 + AAC cuando hay audio). La resolución se ajusta automáticamente, con un máximo de 720p; no hay selector de resolución. El objetivo es un presupuesto, no un tamaño exacto garantizado.
 
 Conserva presets, progreso, errores, cancelación y modo rápido opcional de hasta cuatro hilos. El motor del modo elegido se carga al comprimir, reutiliza una instancia entre trabajos y elimina archivos temporales y listeners. Al salir de la herramienta se cancela el trabajo, se libera el motor y se revocan las URLs de vista previa y descarga. Volver a entrar inicia un estado nuevo.
+
+## Recortador
+
+Ligero.Trimmer recorta un tramo y descarga MP4. Acepta un video de hasta 500 MB. El corte es preciso: reencodifica con H.264 (y AAC a 128 kbps si hay audio) en lugar de cortar en el keyframe más cercano, y no cambia la resolución. El motor se carga al recortar, se reutiliza entre trabajos de la misma visita y, al salir, se cancela el trabajo, se libera el motor y se revocan las URLs.
 
 ## Desarrollo y verificación
 
@@ -16,13 +20,13 @@ bun run dev
 bun run lint
 bunx tsc -b
 bun run build
-bun test compressor.test.mjs platform.test.mjs
+bun test compressor.test.mjs platform.test.mjs trimmer.test.mjs
 bun run preview
 ```
 
 `build` también ejecuta los checks de TypeScript. Usa el servidor preview para probar producción, no abras `dist/index.html` directamente.
 
-Las pruebas usan `bun test`, TypeScript y mocks, sin otro framework. Las del motor cubren progreso, reutilización, reintentos, cancelación y liberación; no ejecutan FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión real, los workers, WebAssembly y la descarga requieren una prueba en navegador.
+Las pruebas usan `bun test`, TypeScript y mocks, sin otro framework. Las del compresor cubren progreso, reutilización, reintentos, cancelación y liberación; las del recortador cubren rango, progreso, cancelación, reutilización, audio ausente y probe ilegible. Ninguna ejecuta FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión o el recorte reales, los workers, WebAssembly y la descarga requieren una prueba en navegador.
 
 ## Estructura y límites
 
@@ -40,13 +44,17 @@ src/
   tools/compressor/
     CompressorPage.tsx            Estado, validación, archivos y presentación
     compressor.css                Estilos aislados y cargados con la herramienta
+  tools/trimmer/
+    TrimmerPage.tsx               Estado, validación, archivos y presentación
+    trimmer.css                   Estilos aislados y cargados con la herramienta
   compressor.ts                   Motor existente, exclusivo del compresor
+  trimmer.ts                      Motor del recortador, exclusivo de esa herramienta
   index.css                       Base visual y estilos compartidos
 ```
 
 Vite/React no proporciona rutas basadas en archivos y este proyecto no tenía router. Se usa History API con `popstate`, enlaces reales y soporte de atrás/adelante; no se agrega una biblioteca para estas rutas planas. `App` mantiene el header fuera de Suspense y del límite de errores. El foco pasa al contenido al navegar y hay enlace para saltar la navegación.
 
-El registro solo contiene datos e iconos ligeros: nunca importa páginas, motores o clientes de API. La tabla `toolPages` hace imports dinámicos. El catálogo no carga el código del compresor ni su motor. Los estilos de herramienta deben estar acotados a su clase raíz, porque el CSS descargado puede permanecer después de navegar.
+El registro solo contiene datos e iconos ligeros: nunca importa páginas, motores o clientes de API. La tabla `toolPages` hace imports dinámicos. El catálogo no carga el código de las herramientas ni sus motores. Los estilos de herramienta deben estar acotados a su clase raíz, porque el CSS descargado puede permanecer después de navegar.
 
 ## Agregar la próxima herramienta
 

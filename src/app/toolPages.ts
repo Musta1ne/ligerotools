@@ -4,4 +4,5 @@ import type { ToolId } from '../catalog/tools'
 
 export const toolPages: Record<ToolId, LazyExoticComponent<ComponentType>> = {
   'video-compressor': lazy(() => import('../tools/compressor/CompressorPage')),
+  'video-trimmer': lazy(() => import('../tools/trimmer/TrimmerPage')),
 }

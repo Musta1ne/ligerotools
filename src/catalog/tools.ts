@@ -1,4 +1,4 @@
-import { FileVideo } from 'lucide-react'
+import { FileVideo, Scissors } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ToolMetadata {
@@ -20,6 +20,15 @@ export const tools = [
     description: 'Reduce el peso de un video con un presupuesto en MB y descarga el resultado en MP4. Procesamiento en tu navegador.',
     category: 'Video',
     icon: FileVideo,
+  },
+  {
+    id: 'video-trimmer',
+    path: '/recortar-video',
+    name: 'Recortador de video',
+    brandSuffix: 'Trimmer',
+    description: 'Recorta un tramo de un video y descarga el resultado en MP4. Procesamiento en tu navegador.',
+    category: 'Video',
+    icon: Scissors,
   },
 ] as const satisfies readonly ToolMetadata[]
 

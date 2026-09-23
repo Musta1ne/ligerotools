@@ -19,7 +19,7 @@ function App() {
 
   useEffect(() => {
     document.title = isHome ? 'Ligero.Tools — Herramientas sencillas' : tool ? `Ligero.${tool.brandSuffix} — ${tool.name}` : 'Página no encontrada — Ligero.Tools'
-    document.querySelector('meta[name="description"]')?.setAttribute('content', tool?.description ?? 'Herramientas sencillas para resolver tareas cotidianas. Empieza con el compresor de video.')
+    document.querySelector('meta[name="description"]')?.setAttribute('content', tool?.description ?? 'Herramientas sencillas para resolver tareas cotidianas. Comprime o recorta un video en tu navegador.')
     if (previousPath.current !== pathname) {
       mainRef.current?.focus()
       window.scrollTo(0, 0)
