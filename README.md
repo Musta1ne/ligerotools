@@ -1,6 +1,6 @@
 # Ligero.Tools
 
-Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`; por ahora solo está disponible el compresor en `/comprimir-video`. No hay backend, cuentas, base de datos ni dependencias nuevas para la plataforma.
+Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor` y el descargador en `/downloader`. El compresor es local; Downloader usa un servicio separado.
 
 ## Compresor
 
@@ -8,11 +8,27 @@ Ligero.Compressor procesa videos localmente con FFmpeg.wasm. Acepta un video de 
 
 Conserva presets, progreso, errores, cancelación y modo rápido opcional de hasta cuatro hilos. El motor del modo elegido se carga al comprimir, reutiliza una instancia entre trabajos y elimina archivos temporales y listeners. Al salir de la herramienta se cancela el trabajo, se libera el motor y se revocan las URLs de vista previa y descarga. Volver a entrar inicia un estado nuevo.
 
+## Downloader
+
+Ligero.Downloader acepta enlaces HTTPS públicos de YouTube, X/Twitter, Instagram y TikTok. Consulta los formatos reales del video, ofrece las resoluciones disponibles y genera calidades inferiores cuando faltan. Prepara un MP4 en la resolución seleccionada o un MP3 del audio. Usa `yt-dlp` y FFmpeg en un servicio Node independiente; los videos pasan por ese servidor y los archivos temporales se eliminan después de 20 minutos. Las plataformas pueden limitar o cambiar el acceso a sus videos. La herramienta no accede a contenido privado ni protegido por DRM.
+
+Para desarrollo local, instala `yt-dlp` y FFmpeg en el `PATH` y abre dos terminales:
+
+```sh
+bun run dev:api
+bun run dev
+```
+
+Vite dirige `/api/downloader` al servicio local en el puerto 8787. También puedes definir `YT_DLP_PATH` si el ejecutable tiene otra ubicación. El endpoint `GET /api/downloader/health` comprueba que el servicio responde; la extracción requiere además que `yt-dlp` y FFmpeg funcionen.
+
+Para producción, despliega `Dockerfile.downloader` como servicio persistente con almacenamiento temporal y configura `DOWNLOADER_ORIGIN=https://tu-dominio-web` en él. Al construir la web, define `VITE_DOWNLOADER_API_URL=https://tu-dominio-del-servicio` (sin barra final). El backend debe estar disponible por HTTPS. Netlify y Vercel siguen publicando solo `dist`: su despliegue estático no ejecuta Downloader hasta que se conecte ese servicio. No se ha configurado ni desplegado un destino de producción en este repositorio.
+
 ## Desarrollo y verificación
 
 ```sh
 bun install
 bun run dev
+bun run format:check
 bun run lint
 bunx tsc -b
 bun run build
@@ -21,6 +37,8 @@ bun run preview
 ```
 
 `build` también ejecuta los checks de TypeScript. Usa el servidor preview para probar producción, no abras `dist/index.html` directamente.
+
+`bun run format` aplica Prettier al repositorio y `bun run format:check` verifica el formato sin modificar archivos.
 
 Las pruebas usan `bun test`, TypeScript y mocks, sin otro framework. Las del motor cubren progreso, reutilización, reintentos, cancelación y liberación; no ejecutan FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión real, los workers, WebAssembly y la descarga requieren una prueba en navegador.
 
@@ -53,7 +71,7 @@ El registro solo contiene datos e iconos ligeros: nunca importa páginas, motore
 1. Crea `src/tools/<herramienta>/<Nombre>Page.tsx` con un componente exportado por defecto, su estado local y su CSS aislado. La página aporta contenido y un `h1`, no otro header, footer ni `main`.
 2. Añade una entrada a `src/catalog/tools.ts`: `id` estable, `path` único (absoluto y sin barra final), `name`, `brandSuffix`, `description`, `category` e `icon`. Esto define su ruta, tarjeta e identidad. Registra solo herramientas disponibles, no placeholders.
 3. Asocia ese ID a `lazy(() => import('../tools/<herramienta>/<Nombre>Page'))` en `src/app/toolPages.ts`. TypeScript exige una página por ID. No hace falta modificar `App`, el header ni otra herramienta.
-4. Define el sufijo explícitamente, independiente del nombre y la URL: `QR` produce **Ligero.QR**, `Downloader` produce **Ligero.Downloader**. La home usa **Ligero.Tools**. QR y Downloader no están implementados ni registrados todavía.
+4. Define el sufijo explícitamente, independiente del nombre y la URL: `QR` produce **Ligero.QR**, `Downloader` produce **Ligero.Downloader**. La home usa **Ligero.Tools**. QR aún no está implementado.
 5. Reutiliza el layout y `AppLink` para navegación interna; usa enlaces normales para descargas, anclas y URLs externas. Mantén el tema `ligero-tema` y los estados de foco accesibles.
 6. Importa dependencias pesadas únicamente desde la página diferida o al iniciar la operación. Limpia workers, peticiones (`AbortController`), timers y URLs al desmontar. Maneja los errores de trabajo dentro de la herramienta; el límite de página protege fallos de carga/renderizado.
 7. Ejecuta lint, tipos, build y pruebas. Verifica ida/vuelta, atrás/adelante, entrada directa y recarga, header, errores, descarga si corresponde, móvil/escritorio, teclado y ambos temas. Comprueba en Network que la home fresca no descarga el nuevo motor.
