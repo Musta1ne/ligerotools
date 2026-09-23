@@ -64,6 +64,15 @@ export function clampTrimEdge(edge: TrimEdge, seconds: number, start: number, en
   return { start: roundMillis(nextStart), end: roundMillis(nextEnd) }
 }
 
+export function previewPlayback(current: number, start: number, end: number) {
+  if (!Number.isFinite(current) || !Number.isFinite(start) || !Number.isFinite(end) || !(end > start)) {
+    return { jumpToStart: false, pause: false }
+  }
+  const beforeStart = current < start
+  const reachedEnd = current >= end
+  return { jumpToStart: beforeStart || reachedEnd, pause: reachedEnd }
+}
+
 let idleEngine: FFmpeg | undefined
 
 function throwTrimAborted(signal: AbortSignal) {

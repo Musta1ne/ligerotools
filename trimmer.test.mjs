@@ -215,6 +215,25 @@ test('clampTrimEdge keeps at least 0.1s inside the duration', () => {
   }
 })
 
+test('previewPlayback stays inside the selected trim', () => {
+  const { previewPlayback } = harness().api
+  const before = previewPlayback(0.4, 1, 4)
+  assert.equal(before.jumpToStart, true, 'antes del inicio salta al inicio')
+  assert.equal(before.pause, false)
+  const inside = previewPlayback(2.5, 1, 4)
+  assert.equal(inside.jumpToStart, false, 'dentro del tramo no salta')
+  assert.equal(inside.pause, false, 'dentro del tramo no pausa')
+  const atStart = previewPlayback(1, 1, 4)
+  assert.deepEqual(atStart, { jumpToStart: false, pause: false })
+  const atEnd = previewPlayback(4, 1, 4)
+  assert.equal(atEnd.pause, true, 'al llegar al fin pausa')
+  const replay = previewPlayback(4, 1, 4)
+  assert.equal(replay.jumpToStart, true, 'otro play con el tiempo en el fin vuelve al inicio')
+  const past = previewPlayback(4.25, 1, 4)
+  assert.equal(past.pause, true)
+  assert.equal(past.jumpToStart, true)
+})
+
 test('formatTrimClock formats 0, 65 and 65.4', () => {
   const { formatTrimClock } = harness().api
   assert.equal(formatTrimClock(0), '0:00')

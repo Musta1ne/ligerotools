@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, SyntheticEvent } from 'react'
 import { ArrowDownToLine, ArrowRight, Check, FileVideo, HardDrive, Info, LoaderCircle, LockKeyhole, Scissors, ShieldCheck, Upload, X } from 'lucide-react'
-import { clampTrimEdge, disposeIdleEngine, formatTrimClock, MAX_INPUT_BYTES, trimRangeError, trimVideo } from '../../trimmer'
+import { clampTrimEdge, disposeIdleEngine, formatTrimClock, MAX_INPUT_BYTES, previewPlayback, trimRangeError, trimVideo } from '../../trimmer'
 import type { TrimEdge, TrimResult, TrimUpdate } from '../../trimmer'
 import './trimmer.css'
 
@@ -112,7 +112,7 @@ function TrimBar({
         )}
       </div>
       {active ? (
-        <p className="trim-readout"><span>Inicio {formatTrimClock(start)}</span><span>Fin {formatTrimClock(end)}</span></p>
+        <p className="trim-readout"><span>Inicio {formatTrimClock(start)}</span><span>Duración {formatTrimClock(Math.max(0, end - start))}</span><span>Fin {formatTrimClock(end)}</span></p>
       ) : (
         <p className="trim-status">{inactiveLabel}</p>
       )}
@@ -141,6 +141,14 @@ function TrimmerPage() {
   const objectURLs = useRef({ preview: '', download: '' })
   const spanRef = useRef({ start: 0, end: 0 })
   const durationRef = useRef<number | null>(null)
+  const endTimer = useRef(0)
+  const playToken = useRef(0)
+
+  function clearEndTimer() {
+    if (!endTimer.current) return
+    window.clearTimeout(endTimer.current)
+    endTimer.current = 0
+  }
 
   useLayoutEffect(() => {
     durationRef.current = duration
@@ -154,6 +162,7 @@ function TrimmerPage() {
       controller.current?.abort()
       controller.current = null
       disposeIdleEngine()
+      if (endTimer.current) window.clearTimeout(endTimer.current)
       for (const url of Object.values(urls)) { if (url) URL.revokeObjectURL(url) }
       urls.preview = ''
       urls.download = ''
@@ -173,6 +182,8 @@ function TrimmerPage() {
   function clearResult() { setResult(null); replaceURL('download'); setUpdate(null) }
 
   function resetRange() {
+    clearEndTimer()
+    playToken.current = 0
     endTouched.current = false
     spanRef.current = { start: 0, end: 0 }
     setStartSec(0)
@@ -216,6 +227,77 @@ function TrimmerPage() {
     setPlayhead(next)
   }
 
+  function scheduleTrimEnd(video: HTMLVideoElement, from: number) {
+    clearEndTimer()
+    const end = spanRef.current.end
+    if (video.paused || !(end > from)) return
+    endTimer.current = window.setTimeout(() => {
+      endTimer.current = 0
+      const node = videoRef.current
+      if (!node || node.paused) return
+      const edge = spanRef.current.end
+      if (node.currentTime < edge - 0.08) {
+        scheduleTrimEnd(node, node.currentTime)
+        return
+      }
+      node.pause()
+      node.currentTime = edge
+      setPlayhead(edge)
+    }, Math.max(0, (end - from) * 1000))
+  }
+
+  function onPreviewPlay(event: SyntheticEvent<HTMLVideoElement>) {
+    const video = event.currentTarget
+    const { start, end } = spanRef.current
+    const decision = previewPlayback(video.currentTime, start, end)
+    const origin = decision.jumpToStart ? start : video.currentTime
+    if (decision.jumpToStart) {
+      playToken.current += 1
+      const token = playToken.current
+      video.addEventListener('seeked', () => {
+        if (playToken.current === token) playToken.current = 0
+      }, { once: true })
+      video.currentTime = origin
+      setPlayhead(origin)
+    }
+    scheduleTrimEnd(video, origin)
+  }
+
+  function onPreviewTime(event: SyntheticEvent<HTMLVideoElement>) {
+    const video = event.currentTarget
+    const time = video.currentTime
+    const { start, end } = spanRef.current
+    if (playToken.current !== 0 && !(time >= start && time < end)) {
+      setPlayhead(time)
+      return
+    }
+    playToken.current = 0
+    setPlayhead(time)
+    if (video.paused) return
+    const decision = previewPlayback(time, start, end)
+    if (decision.pause) {
+      clearEndTimer()
+      video.pause()
+      if (time > end) video.currentTime = end
+      setPlayhead(end)
+      return
+    }
+    if (decision.jumpToStart) {
+      video.currentTime = start
+      setPlayhead(start)
+      scheduleTrimEnd(video, start)
+      return
+    }
+    scheduleTrimEnd(video, time)
+  }
+
+  function onTrackSeek(seconds: number) {
+    playToken.current = 0
+    clearEndTimer()
+    const { start, end } = spanRef.current
+    showFrame(seconds, end > start && (seconds < start || seconds >= end))
+  }
+
   function onMetadata(event: SyntheticEvent<HTMLVideoElement>) {
     const next = event.currentTarget.duration
     setDuration(Number.isFinite(next) ? next : Number.NaN)
@@ -227,6 +309,8 @@ function TrimmerPage() {
   }
 
   function changeEdge(edge: TrimEdge, seconds: number) {
+    playToken.current = 0
+    clearEndTimer()
     const length = durationRef.current
     if (length === null || !Number.isFinite(length) || length <= 0) return
     const next = clampTrimEdge(edge, seconds, spanRef.current.start, spanRef.current.end, length)
@@ -304,8 +388,7 @@ function TrimmerPage() {
           ) : (
             <div className="selected-video">
               <div className="player">
-                <div className="preview"><video ref={videoRef} key={previewURL} src={previewURL} controls playsInline preload="metadata" onLoadedMetadata={onMetadata} onTimeUpdate={(event) => setPlayhead(event.currentTarget.currentTime)} /></div>
-                <TrimBar active={rangeReady} busy={busy} start={startSec} end={endSec ?? 0} duration={knownDuration ?? 0} playhead={playhead} inactiveLabel={inactiveLabel} describedBy={rangeMessage ? 'trim-range-error' : undefined} onSeek={(seconds) => showFrame(seconds, false)} onChangeEdge={changeEdge} onNudge={(edge, delta) => changeEdge(edge, (edge === 'start' ? spanRef.current.start : spanRef.current.end) + delta)} />
+                <div className="preview"><video ref={videoRef} key={previewURL} src={previewURL} controls playsInline preload="metadata" onLoadedMetadata={onMetadata} onPlay={onPreviewPlay} onTimeUpdate={onPreviewTime} /></div>
               </div>
               <span className="preview-note">Vista previa · según compatibilidad del navegador</span>
               <div className="file-details"><FileVideo size={25} /><div><strong title={file.name}>{file.name}</strong><span>{size(file.size)} · Video original</span></div><button type="button" className="icon-button" disabled={busy} aria-label="Quitar video" onClick={removeFile}><X size={18} /></button></div>
@@ -314,10 +397,12 @@ function TrimmerPage() {
           <div className="local-note"><LockKeyhole size={16} /><p>Tu video se queda contigo.<br /><span>Todo el procesamiento ocurre en este navegador.</span></p></div>
         </div>
 
+        {file && <div className="trim-stage"><TrimBar active={rangeReady} busy={busy} start={startSec} end={endSec ?? 0} duration={knownDuration ?? 0} playhead={playhead} inactiveLabel={inactiveLabel} describedBy={rangeMessage ? 'trim-range-error' : undefined} onSeek={onTrackSeek} onChangeEdge={changeEdge} onNudge={(edge, delta) => changeEdge(edge, (edge === 'start' ? spanRef.current.start : spanRef.current.end) + delta)} /></div>}
+
         <div className="settings-panel">
           <div className="section-title"><span className="step">02</span><h2>Elige el tramo</h2><Scissors className="settings-icon" size={17} /></div>
           <fieldset disabled={busy}>
-            <p className="field-hint">Arrastra las asas bajo el video. Con el teclado, las flechas mueven 0,1 s y Shift las mueve 1 s.</p>
+            <p className="field-hint">Arrastra las asas de la barra. Las flechas mueven 0,1 s y Shift las mueve 1 s.</p>
             {rangeMessage && <p className="range-error" id="trim-range-error" role="status">{rangeMessage}</p>}
             <div className="output-format"><span>Salida</span><strong>MP4 <span>H.264 · AAC si hay audio</span></strong></div>
           </fieldset>
