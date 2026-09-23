@@ -19,6 +19,50 @@ export interface TrimResult {
   endSec: number
 }
 export const MAX_INPUT_BYTES = 500_000_000
+const MIN_TRIM_SECONDS = 0.1
+
+export type TrimEdge = 'start' | 'end'
+
+function finiteOr(value: number, fallback: number) {
+  return Number.isFinite(value) ? value : fallback
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function roundMillis(value: number) {
+  return Math.round(value * 1000) / 1000
+}
+
+export function formatTrimClock(seconds: number) {
+  const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  const tenths = Math.round(safe * 10)
+  const whole = Math.floor(tenths / 10)
+  const fraction = tenths % 10
+  const minutes = Math.floor(whole / 60)
+  const secs = whole % 60
+  const body = `${minutes}:${String(secs).padStart(2, '0')}`
+  return fraction === 0 ? body : `${body},${fraction}`
+}
+
+export function clampTrimEdge(edge: TrimEdge, seconds: number, start: number, end: number, duration: number) {
+  const length = Number.isFinite(duration) && duration > 0 ? duration : 0
+  const minSpan = Math.min(MIN_TRIM_SECONDS, length)
+  let nextStart = clamp(finiteOr(start, 0), 0, length)
+  let nextEnd = clamp(finiteOr(end, length), 0, length)
+  if (nextEnd < nextStart) nextEnd = nextStart
+  if (edge === 'start') {
+    const proposed = clamp(finiteOr(seconds, nextStart), 0, length)
+    nextStart = Math.min(proposed, Math.max(0, nextEnd - minSpan))
+    if (nextEnd - nextStart < minSpan - 1e-6) nextEnd = Math.min(length, nextStart + minSpan)
+  } else {
+    const proposed = clamp(finiteOr(seconds, nextEnd), 0, length)
+    nextEnd = Math.max(proposed, Math.min(length, nextStart + minSpan))
+    if (nextEnd - nextStart < minSpan - 1e-6) nextStart = Math.max(0, nextEnd - minSpan)
+  }
+  return { start: roundMillis(nextStart), end: roundMillis(nextEnd) }
+}
 
 let idleEngine: FFmpeg | undefined
 
@@ -36,7 +80,7 @@ export function trimRangeError(startSec: number, endSec: number, durationSec?: n
   if (!Number.isFinite(startSec) || !Number.isFinite(endSec)) return 'El inicio y el fin del recorte deben ser números finitos.'
   if (startSec < 0) return 'El inicio del recorte no puede ser negativo.'
   if (endSec <= startSec) return 'El fin del recorte debe ser posterior al inicio.'
-  if (endSec - startSec < 0.1) return 'El recorte debe durar al menos 0,1 segundos.'
+  if (endSec - startSec < MIN_TRIM_SECONDS) return 'El recorte debe durar al menos 0,1 segundos.'
   if (durationSec !== undefined && endSec > durationSec + 0.05) return 'El fin del recorte supera la duración del video.'
   return ''
 }

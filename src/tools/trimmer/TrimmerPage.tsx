@@ -1,28 +1,131 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import type { KeyboardEvent, PointerEvent, SyntheticEvent } from 'react'
 import { ArrowDownToLine, ArrowRight, Check, FileVideo, HardDrive, Info, LoaderCircle, LockKeyhole, Scissors, ShieldCheck, Upload, X } from 'lucide-react'
-import { disposeIdleEngine, MAX_INPUT_BYTES, trimRangeError, trimVideo } from '../../trimmer'
-import type { TrimResult, TrimUpdate } from '../../trimmer'
+import { clampTrimEdge, disposeIdleEngine, formatTrimClock, MAX_INPUT_BYTES, trimRangeError, trimVideo } from '../../trimmer'
+import type { TrimEdge, TrimResult, TrimUpdate } from '../../trimmer'
 import './trimmer.css'
 
 const size = (bytes: number) => `${(bytes / 1_000_000).toLocaleString('es', { maximumFractionDigits: 2 })} MB`
-const clock = (value: number) => value.toLocaleString('es', { maximumFractionDigits: 3 })
 
-function formatSeconds(value: number) {
-  return String(Math.round(value * 1000) / 1000)
+function percent(value: number, duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) return 0
+  return Math.min(100, Math.max(0, (value / duration) * 100))
 }
 
-function visibleRangeError(start: string, end: string, duration: number | null) {
-  if (end.trim() === '' && duration === null) return ''
-  if (start.trim() === '' || end.trim() === '') return 'Indica el inicio y el fin del recorte, en segundos.'
-  const known = duration !== null && Number.isFinite(duration) && duration > 0 ? duration : undefined
-  return trimRangeError(Number(start), Number(end), known)
+function TrimBar({
+  active,
+  busy,
+  start,
+  end,
+  duration,
+  playhead,
+  inactiveLabel,
+  describedBy,
+  onSeek,
+  onChangeEdge,
+  onNudge,
+}: {
+  active: boolean
+  busy: boolean
+  start: number
+  end: number
+  duration: number
+  playhead: number
+  inactiveLabel: string
+  describedBy?: string
+  onSeek: (seconds: number) => void
+  onChangeEdge: (edge: TrimEdge, seconds: number) => void
+  onNudge: (edge: TrimEdge, delta: number) => void
+}) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const startPct = percent(start, duration)
+  const endPct = percent(end, duration)
+  const playPct = percent(playhead, duration)
+
+  function timeAt(clientX: number) {
+    const track = trackRef.current
+    if (!track || !Number.isFinite(duration) || duration <= 0) return 0
+    const rect = track.getBoundingClientRect()
+    if (rect.width <= 0) return 0
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    return ratio * duration
+  }
+
+  function onTrackPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || busy || !active) return
+    if (event.target instanceof Element && event.target.closest('button')) return
+    onSeek(timeAt(event.clientX))
+  }
+
+  function onHandlePointerDown(edge: TrimEdge, event: PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || busy || !active) return
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    onChangeEdge(edge, timeAt(event.clientX))
+  }
+
+  function onHandlePointerMove(edge: TrimEdge, event: PointerEvent<HTMLButtonElement>) {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return
+    onChangeEdge(edge, timeAt(event.clientX))
+  }
+
+  function onHandleKeyDown(edge: TrimEdge, event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    if (busy || !active) return
+    const step = event.shiftKey ? 1 : 0.1
+    onNudge(edge, event.key === 'ArrowLeft' ? -step : step)
+  }
+
+  function handle(edge: TrimEdge, at: number, label: string, min: number, max: number) {
+    return (
+      <button
+        type="button"
+        role="slider"
+        className={`trim-handle trim-handle-${edge}`}
+        style={{ left: `${at}%` }}
+        aria-label={label}
+        aria-orientation="horizontal"
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={edge === 'start' ? start : end}
+        aria-valuetext={formatTrimClock(edge === 'start' ? start : end)}
+        aria-describedby={describedBy}
+        disabled={busy}
+        onPointerDown={(event) => onHandlePointerDown(edge, event)}
+        onPointerMove={(event) => onHandlePointerMove(edge, event)}
+        onKeyDown={(event) => onHandleKeyDown(edge, event)}
+      />
+    )
+  }
+
+  return (
+    <div className={`trim-bar${active ? '' : ' is-inactive'}`} role="group" aria-label="Barra de recorte" aria-disabled={active ? undefined : true}>
+      <div className="trim-track" ref={trackRef} onPointerDown={onTrackPointerDown}>
+        {active && (
+          <>
+            <div className="trim-selection" style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
+            <div className="trim-playhead" style={{ left: `${playPct}%` }} />
+            {handle('start', startPct, 'Inicio del recorte', 0, Math.max(0, end - 0.1))}
+            {handle('end', endPct, 'Fin del recorte', Math.min(duration, start + 0.1), duration)}
+          </>
+        )}
+      </div>
+      {active ? (
+        <p className="trim-readout"><span>Inicio {formatTrimClock(start)}</span><span>Fin {formatTrimClock(end)}</span></p>
+      ) : (
+        <p className="trim-status">{inactiveLabel}</p>
+      )}
+    </div>
+  )
 }
 
 function TrimmerPage() {
   const [file, setFile] = useState<File | null>(null)
-  const [start, setStart] = useState('0')
-  const [end, setEnd] = useState('')
+  const [startSec, setStartSec] = useState(0)
+  const [endSec, setEndSec] = useState<number | null>(null)
   const [duration, setDuration] = useState<number | null>(null)
+  const [playhead, setPlayhead] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -36,6 +139,12 @@ function TrimmerPage() {
   const mounted = useRef(false)
   const endTouched = useRef(false)
   const objectURLs = useRef({ preview: '', download: '' })
+  const spanRef = useRef({ start: 0, end: 0 })
+  const durationRef = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    durationRef.current = duration
+  }, [duration])
 
   useLayoutEffect(() => {
     mounted.current = true
@@ -63,12 +172,18 @@ function TrimmerPage() {
 
   function clearResult() { setResult(null); replaceURL('download'); setUpdate(null) }
 
-  function removeFile() {
+  function resetRange() {
     endTouched.current = false
-    setFile(null)
+    spanRef.current = { start: 0, end: 0 }
+    setStartSec(0)
+    setEndSec(null)
     setDuration(null)
-    setStart('0')
-    setEnd('')
+    setPlayhead(0)
+  }
+
+  function removeFile() {
+    resetRange()
+    setFile(null)
     replaceURL('preview')
     clearResult()
     setError('')
@@ -85,36 +200,57 @@ function TrimmerPage() {
     if (!selected.size || selected.size > MAX_INPUT_BYTES) {
       setError('El video debe pesar entre 1 byte y 500 MB.'); return
     }
-    endTouched.current = false
-    setDuration(null)
-    setStart('0')
-    setEnd('')
+    resetRange()
     setFile(selected)
     replaceURL('preview', selected)
     clearResult()
   }
 
-  function mark(which: 'start' | 'end') {
-    const current = videoRef.current?.currentTime
-    if (current === undefined || !Number.isFinite(current)) return
-    const text = formatSeconds(Math.max(0, current))
-    if (which === 'start') setStart(text)
-    else { endTouched.current = true; setEnd(text) }
+  function showFrame(seconds: number, hold: boolean) {
+    const video = videoRef.current
+    if (!video || !Number.isFinite(seconds)) return
+    if (hold) video.pause()
+    const limit = Number.isFinite(video.duration) ? video.duration : seconds
+    const next = Math.min(Math.max(0, seconds), limit)
+    video.currentTime = next
+    setPlayhead(next)
+  }
+
+  function onMetadata(event: SyntheticEvent<HTMLVideoElement>) {
+    const next = event.currentTarget.duration
+    setDuration(Number.isFinite(next) ? next : Number.NaN)
+    if (!endTouched.current && Number.isFinite(next) && next > 0) {
+      spanRef.current = { start: 0, end: next }
+      setStartSec(0)
+      setEndSec(next)
+    }
+  }
+
+  function changeEdge(edge: TrimEdge, seconds: number) {
+    const length = durationRef.current
+    if (length === null || !Number.isFinite(length) || length <= 0) return
+    const next = clampTrimEdge(edge, seconds, spanRef.current.start, spanRef.current.end, length)
+    spanRef.current = next
+    endTouched.current = true
+    setStartSec(next.start)
+    setEndSec(next.end)
+    showFrame(edge === 'start' ? next.start : next.end, true)
     clearResult()
     setError('')
   }
 
   async function startTrim() {
-    if (!mounted.current || !file || controller.current) return
-    const rangeError = visibleRangeError(start, end, duration)
-    if (rangeError || start.trim() === '' || end.trim() === '') { setError(rangeError || 'Indica el inicio y el fin del recorte, en segundos.'); return }
+    if (!mounted.current || !file || controller.current || endSec === null) return
+    const known = duration !== null && Number.isFinite(duration) && duration > 0 ? duration : undefined
+    const rangeError = trimRangeError(startSec, endSec, known)
+    if (rangeError) { setError(rangeError); return }
     const current = new AbortController()
     controller.current = current
     setBusy(true)
     setError('')
     clearResult()
     try {
-      const output = await trimVideo(file, { startSec: Number(start), endSec: Number(end) }, (value) => {
+      const output = await trimVideo(file, { startSec, endSec }, (value) => {
         if (controller.current === current) setUpdate(value)
       }, current.signal)
       if (controller.current === current) {
@@ -137,10 +273,13 @@ function TrimmerPage() {
     setUpdate(null)
   }
 
-  const rangeMessage = file ? visibleRangeError(start, end, duration) : ''
-  const canStart = Boolean(file) && start.trim() !== '' && end.trim() !== '' && rangeMessage === ''
-  const percent = Math.round((update?.progress ?? 0) * 100)
+  const knownDuration = duration !== null && Number.isFinite(duration) && duration > 0 ? duration : null
+  const rangeReady = endSec !== null && knownDuration !== null
+  const rangeMessage = file && rangeReady ? trimRangeError(startSec, endSec, knownDuration) : ''
+  const canStart = Boolean(file) && rangeReady && rangeMessage === ''
+  const percentDone = Math.round((update?.progress ?? 0) * 100)
   const showPercent = update?.phase === 'trimming' || update?.phase === 'finalizing'
+  const inactiveLabel = duration !== null && !Number.isFinite(duration) ? 'No se pudo leer la duración.' : 'Esperando la duración del video…'
 
   return (
     <div className="trimmer-tool">
@@ -164,11 +303,11 @@ function TrimmerPage() {
             </button>
           ) : (
             <div className="selected-video">
-              <div className="preview"><video ref={videoRef} key={previewURL} src={previewURL} controls playsInline preload="metadata" onLoadedMetadata={(event) => {
-                const next = event.currentTarget.duration
-                setDuration(Number.isFinite(next) ? next : Number.NaN)
-                if (!endTouched.current && Number.isFinite(next) && next > 0) setEnd(formatSeconds(next))
-              }} /><span>Vista previa · según compatibilidad del navegador</span></div>
+              <div className="player">
+                <div className="preview"><video ref={videoRef} key={previewURL} src={previewURL} controls playsInline preload="metadata" onLoadedMetadata={onMetadata} onTimeUpdate={(event) => setPlayhead(event.currentTarget.currentTime)} /></div>
+                <TrimBar active={rangeReady} busy={busy} start={startSec} end={endSec ?? 0} duration={knownDuration ?? 0} playhead={playhead} inactiveLabel={inactiveLabel} describedBy={rangeMessage ? 'trim-range-error' : undefined} onSeek={(seconds) => showFrame(seconds, false)} onChangeEdge={changeEdge} onNudge={(edge, delta) => changeEdge(edge, (edge === 'start' ? spanRef.current.start : spanRef.current.end) + delta)} />
+              </div>
+              <span className="preview-note">Vista previa · según compatibilidad del navegador</span>
               <div className="file-details"><FileVideo size={25} /><div><strong title={file.name}>{file.name}</strong><span>{size(file.size)} · Video original</span></div><button type="button" className="icon-button" disabled={busy} aria-label="Quitar video" onClick={removeFile}><X size={18} /></button></div>
             </div>
           )}
@@ -178,22 +317,7 @@ function TrimmerPage() {
         <div className="settings-panel">
           <div className="section-title"><span className="step">02</span><h2>Elige el tramo</h2><Scissors className="settings-icon" size={17} /></div>
           <fieldset disabled={busy}>
-            <div className="time-fields">
-              <div>
-                <label className="field-label" htmlFor="trim-start">Desde <span>segundos</span></label>
-                <input id="trim-start" type="number" min="0" step="any" inputMode="decimal" autoComplete="off" value={start} aria-describedby={rangeMessage ? 'trim-range-error' : undefined} onChange={(event) => { setStart(event.target.value); clearResult(); setError('') }} />
-              </div>
-              <div>
-                <label className="field-label" htmlFor="trim-end">Hasta <span>segundos</span></label>
-                <input id="trim-end" type="number" min="0" step="any" inputMode="decimal" autoComplete="off" value={end} aria-describedby={rangeMessage ? 'trim-range-error' : undefined} onChange={(event) => { endTouched.current = true; setEnd(event.target.value); clearResult(); setError('') }} />
-              </div>
-            </div>
-            <p className="duration-readout">{duration === null ? 'Duración: esperando los datos del video…' : Number.isFinite(duration) ? `Duración: ${clock(duration)} s` : 'No se pudo leer la duración en esta vista previa.'}</p>
-            <div className="mark-row">
-              <button type="button" disabled={!file} onClick={() => mark('start')}>Marcar inicio</button>
-              <button type="button" disabled={!file} onClick={() => mark('end')}>Marcar fin</button>
-            </div>
-            <p className="field-hint">Esos botones copian el tiempo actual de la vista previa. El tramo mínimo es 0,1 s.</p>
+            <p className="field-hint">Arrastra las asas bajo el video. Con el teclado, las flechas mueven 0,1 s y Shift las mueve 1 s.</p>
             {rangeMessage && <p className="range-error" id="trim-range-error" role="status">{rangeMessage}</p>}
             <div className="output-format"><span>Salida</span><strong>MP4 <span>H.264 · AAC si hay audio</span></strong></div>
           </fieldset>
@@ -203,8 +327,8 @@ function TrimmerPage() {
       </section>
 
       {error && <div className="error-message" role="alert"><Info size={20} /><span>{error}</span></div>}
-      {busy && update && <section className="status-card" aria-live="polite"><div className="status-heading"><LoaderCircle className="spin" size={21} /><strong>{update.message}</strong><span>{showPercent ? `${percent} %` : 'Un momento…'}</span></div><div className={`progress-track ${update.phase === 'loading' || update.phase === 'analyzing' ? 'indeterminate' : ''}`} role="progressbar" aria-label="Progreso del recorte" aria-valuemin={0} aria-valuemax={100} aria-valuenow={showPercent ? percent : undefined}><div style={{ width: `${percent}%` }} /></div><p>Los videos largos pueden tardar varios minutos. No cierres esta pestaña.</p></section>}
-      {result && file && downloadURL && <section className="result-card" aria-live="polite"><div className="result-heading"><span className="success-icon"><Check size={24} /></span><div><h2>Recorte listo.</h2><p>{clock(result.startSec)} s – {clock(result.endSec)} s · {clock(result.durationSec)} s · {size(result.blob.size)}</p></div></div><a className="download-button" href={downloadURL} download={`${file.name.replace(/\.[^.]+$/, '')}-recorte.mp4`}><ArrowDownToLine size={18} /> Descargar MP4</a></section>}
+      {busy && update && <section className="status-card" aria-live="polite"><div className="status-heading"><LoaderCircle className="spin" size={21} /><strong>{update.message}</strong><span>{showPercent ? `${percentDone} %` : 'Un momento…'}</span></div><div className={`progress-track ${update.phase === 'loading' || update.phase === 'analyzing' ? 'indeterminate' : ''}`} role="progressbar" aria-label="Progreso del recorte" aria-valuemin={0} aria-valuemax={100} aria-valuenow={showPercent ? percentDone : undefined}><div style={{ width: `${percentDone}%` }} /></div><p>Los videos largos pueden tardar varios minutos. No cierres esta pestaña.</p></section>}
+      {result && file && downloadURL && <section className="result-card" aria-live="polite"><div className="result-heading"><span className="success-icon"><Check size={24} /></span><div><h2>Recorte listo.</h2><p>{formatTrimClock(result.startSec)} – {formatTrimClock(result.endSec)} · {formatTrimClock(result.durationSec)} · {size(result.blob.size)}</p></div></div><a className="download-button" href={downloadURL} download={`${file.name.replace(/\.[^.]+$/, '')}-recorte.mp4`}><ArrowDownToLine size={18} /> Descargar MP4</a></section>}
 
       <div className="under-workspace"><Info size={15} /><span>El corte se reencodifica para no depender de los keyframes. La resolución no cambia.</span><span className="engine-label">POWERED BY FFMPEG.WASM</span></div>
     </div>

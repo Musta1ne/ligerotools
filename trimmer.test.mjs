@@ -54,7 +54,7 @@ function harness({ outputSize = 1000, probe = defaultProbe, probeCode = 0, hooks
     const result = await exports.trimVideo({ size: 2_000_000 }, settings, (update) => updates.push(update), signal)
     return { updates, result }
   }
-  return { run, dispose: exports.disposeIdleEngine, instances: () => instances, executions: () => executions, probes: () => probes, engines }
+  return { run, dispose: exports.disposeIdleEngine, instances: () => instances, executions: () => executions, probes: () => probes, engines, api: exports }
 }
 
 function pair(args, flag) {
@@ -192,6 +192,34 @@ test('broken probe fails with a spanish error', async () => {
   const timeless = harness({ probe: JSON.stringify({ format: { duration: 'no' }, streams: [{ codec_type: 'video' }] }) })
   await assert.rejects(timeless.run(), { message: 'No se pudo leer una duración válida del video.' })
   assert.equal(timeless.executions(), 0)
+})
+
+test('clampTrimEdge keeps at least 0.1s inside the duration', () => {
+  const { clampTrimEdge } = harness().api
+  const cases = [
+    ['start', -4, 1, 4, 10, 0, 4],
+    ['start', 9, 1, 4, 10, 3.9, 4],
+    ['end', 40, 1, 4, 10, 1, 10],
+    ['end', 1.02, 1, 4, 10, 1, 1.1],
+    ['start', 0, 0, 8, 8, 0, 8],
+    ['end', 8, 0, 8, 8, 0, 8],
+  ]
+  for (const [edge, seconds, start, end, duration, expectedStart, expectedEnd] of cases) {
+    const next = clampTrimEdge(edge, seconds, start, end, duration)
+    assert.deepEqual(next, { start: expectedStart, end: expectedEnd })
+    assert.ok(next.start >= 0)
+    assert.ok(next.end <= duration)
+    assert.ok(next.end - next.start >= 0.1 - 1e-9)
+    if (edge === 'start') assert.equal(next.end, expectedEnd)
+    else assert.equal(next.start, expectedStart)
+  }
+})
+
+test('formatTrimClock formats 0, 65 and 65.4', () => {
+  const { formatTrimClock } = harness().api
+  assert.equal(formatTrimClock(0), '0:00')
+  assert.equal(formatTrimClock(65), '1:05')
+  assert.equal(formatTrimClock(65.4), '1:05,4')
 })
 
 test('failed temporary cleanup terminates and does not reuse the engine', async () => {
