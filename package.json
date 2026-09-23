@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:api": "node server/downloader.mjs",
+    "prototype:helper": "node server/local-helper-prototype.mjs",
     "prototype": "vite --open /?proto-landing=1",
     "format": "prettier --write . --ignore-unknown",
     "format:check": "prettier --check . --ignore-unknown",

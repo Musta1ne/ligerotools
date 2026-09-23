@@ -12,9 +12,19 @@ interface Inspection {
 
 type Job = { status: 'working' | 'ready' | 'error'; error?: string; fileUrl?: string }
 const apiBase = (import.meta.env.VITE_DOWNLOADER_API_URL || '').replace(/\/$/, '')
+const helperBase = 'http://127.0.0.1:8788'
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, init)
+function isYouTubeUrl(value: string) {
+  try {
+    const hostname = new URL(value.trim()).hostname.toLowerCase()
+    return hostname === 'youtu.be' || hostname === 'youtube.com' || hostname.endsWith('.youtube.com')
+  } catch {
+    return false
+  }
+}
+
+async function api<T>(base: string, path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${base}${path}`, init)
   if (!response.headers.get('content-type')?.includes('application/json')) {
     throw new Error('El servicio de descargas no está disponible. Intenta de nuevo más tarde.')
   }
@@ -35,6 +45,8 @@ function DownloaderPage() {
   const [job, setJob] = useState<Job | null>(null)
   const [error, setError] = useState('')
   const [fileHref, setFileHref] = useState('')
+  const [requestBase, setRequestBase] = useState(apiBase)
+  const [helperStatus, setHelperStatus] = useState<'unknown' | 'checking' | 'ready' | 'offline'>('unknown')
   const currentRequest = useRef<AbortController | null>(null)
   const polling = useRef<ReturnType<typeof setInterval> | null>(null)
   const generation = useRef(0)
@@ -61,6 +73,23 @@ function DownloaderPage() {
     setBusy(false)
   }
 
+  async function checkHelper(signal?: AbortSignal) {
+    setHelperStatus('checking')
+    try {
+      const health = await api<{ ok: boolean; localHelper: boolean }>(
+        helperBase,
+        '/api/downloader/health',
+        { signal },
+      )
+      if (!health.ok || !health.localHelper) throw new Error('El ayudante local no está disponible.')
+      if (!signal?.aborted) setHelperStatus('ready')
+      return true
+    } catch {
+      if (!signal?.aborted) setHelperStatus('offline')
+      return false
+    }
+  }
+
   async function inspect(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!url.trim()) {
@@ -72,13 +101,16 @@ function DownloaderPage() {
     currentRequest.current = controller
     setBusy(true)
     try {
-      const result = await api<Inspection>('/api/downloader/inspect', {
+      const base = isYouTubeUrl(url) ? helperBase : apiBase
+      if (base === helperBase && !(await checkHelper(controller.signal))) return
+      const result = await api<Inspection>(base, '/api/downloader/inspect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: url.trim() }),
         signal: controller.signal,
       })
       if (!controller.signal.aborted) {
+        setRequestBase(base)
         setInspection(result)
         setHeight(result.qualities[0] ?? null)
       }
@@ -101,7 +133,7 @@ function DownloaderPage() {
     setBusy(true)
     const requestGeneration = ++generation.current
     try {
-      const created = await api<{ id: string }>('/api/downloader/jobs', {
+      const created = await api<{ id: string }>(requestBase, '/api/downloader/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: inspection.id, kind, height }),
@@ -110,7 +142,7 @@ function DownloaderPage() {
       setJob({ status: 'working' })
       const check = async () => {
         try {
-          const state = await api<Job>(`/api/downloader/jobs/${created.id}`)
+          const state = await api<Job>(requestBase, `/api/downloader/jobs/${created.id}`)
           if (generation.current !== requestGeneration) return false
           setJob(state)
           if (state.status !== 'working') {
@@ -118,7 +150,7 @@ function DownloaderPage() {
             polling.current = null
             setBusy(false)
             if (state.status === 'error') setError(state.error || 'No se pudo preparar el archivo.')
-            if (state.status === 'ready' && state.fileUrl) setFileHref(`${apiBase}${state.fileUrl}`)
+            if (state.status === 'ready' && state.fileUrl) setFileHref(`${requestBase}${state.fileUrl}`)
           }
           return state.status === 'working'
         } catch (cause) {
@@ -142,6 +174,7 @@ function DownloaderPage() {
   }
 
   const minutes = inspection?.duration ? Math.ceil(inspection.duration / 60) : null
+  const youtube = isYouTubeUrl(url)
 
   return (
     <div className="downloader-tool">
@@ -176,6 +209,7 @@ function DownloaderPage() {
               onChange={(event) => {
                 setUrl(event.target.value)
                 reset()
+                setHelperStatus('unknown')
               }}
               placeholder="https://www.youtube.com/watch?v=..."
               autoComplete="url"
@@ -195,6 +229,25 @@ function DownloaderPage() {
           Solo videos públicos a los que tengas permiso de acceder y descargar. La disponibilidad
           depende de cada plataforma.
         </p>
+
+        {youtube && helperStatus !== 'ready' && (
+          <div className="downloader-helper" role="region" aria-label="Ayudante local para YouTube">
+            <strong>Para YouTube, la descarga se prepara en tu equipo</strong>
+            <p>
+              Esta prueba usa un ayudante opcional. Abrí una terminal en la carpeta del proyecto y
+              ejecutá <code>bun run prototype:helper</code>. Se detiene al cerrar la terminal o tras
+              30 minutos sin uso.
+            </p>
+            <div className="downloader-helper-actions">
+              <button type="button" onClick={() => void checkHelper()} disabled={helperStatus === 'checking'}>
+                {helperStatus === 'checking' ? 'Comprobando…' : 'Comprobar conexión'}
+              </button>
+              <span role="status">
+                {helperStatus === 'offline' && 'Ayudante apagado. Abrilo y comprobá de nuevo.'}
+              </span>
+            </div>
+          </div>
+        )}
 
         {inspection && (
           <div className="downloader-result">

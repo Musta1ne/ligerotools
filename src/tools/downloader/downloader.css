@@ -100,6 +100,53 @@
 .downloader-hint {
   margin: 12px 0 0;
 }
+.downloader-helper {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d9e1d1;
+  border-radius: 10px;
+  background: #f6f8f2;
+  font-size: 13px;
+}
+.downloader-helper strong {
+  display: block;
+  margin-bottom: 7px;
+}
+.downloader-helper p {
+  margin: 0;
+  line-height: 1.6;
+  color: #626b60;
+}
+.downloader-helper code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #e8ede1;
+  color: #252a25;
+  white-space: nowrap;
+}
+.downloader-helper-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.downloader-helper-actions button {
+  padding: 7px 11px;
+  border: 1px solid #9aa98c;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.downloader-helper-actions button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.downloader-helper-actions span {
+  color: #536348;
+}
 .downloader-result {
   border-top: 1px solid #e1e5da;
   margin-top: 26px;
@@ -214,6 +261,20 @@
 [data-theme='dark'] .downloader-panel {
   background: #202722;
   border-color: #556251;
+}
+[data-theme='dark'] .downloader-helper {
+  background: #263027;
+  border-color: #536447;
+}
+[data-theme='dark'] .downloader-helper p {
+  color: #b9c4b1;
+}
+[data-theme='dark'] .downloader-helper code {
+  background: #19201b;
+  color: #f4f7f2;
+}
+[data-theme='dark'] .downloader-helper-actions span {
+  color: #c7dbb7;
 }
 [data-theme='dark'] .downloader-platforms span {
   background: #2c3827;
