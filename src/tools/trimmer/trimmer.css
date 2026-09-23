@@ -54,14 +54,16 @@
 .trimmer-tool .preview-note { display: block; color: #626b60; font-size: 9px; margin-top: 8px; }
 .trimmer-tool .trim-stage { grid-area: trim; padding: 18px 29px 26px; background: #fff; border-top: 1px solid #e7e8e1; }
 .trimmer-tool .trim-bar { padding: 0; touch-action: none; user-select: none; }
-.trimmer-tool .trim-track { position: relative; height: 64px; border-radius: 10px; background: #e4e7dc; border: 1px solid #d2d6c8; touch-action: none; cursor: pointer; }
+.trimmer-tool .trim-track { --trim-grip: 16px; position: relative; height: 64px; box-sizing: border-box; padding: 0 var(--trim-grip); border-radius: 10px; background: #e4e7dc; border: 1px solid #d2d6c8; touch-action: none; cursor: pointer; }
+.trimmer-tool .trim-scale { position: relative; height: 100%; }
 .trimmer-tool .trim-bar.is-inactive .trim-track { opacity: .55; cursor: default; }
 .trimmer-tool .trim-selection { position: absolute; top: 0; bottom: 0; background: #ed795a; border-radius: 8px; box-shadow: inset 0 0 0 2px #b8482e; touch-action: none; cursor: grab; }
 .trimmer-tool .trim-selection:active { cursor: grabbing; }
 .trimmer-tool .trim-playhead { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: #1c2820; box-shadow: 0 0 0 1px #fff; border-radius: 1px; pointer-events: none; z-index: 1; }
-.trimmer-tool .trim-handle { position: absolute; top: 0; bottom: 0; z-index: 2; display: grid; place-items: center; width: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 1px solid #c5cbb8; border-radius: 8px; background: #fff; box-shadow: 0 2px 6px #1c241e33; transform: translateX(-50%); touch-action: none; cursor: ew-resize; }
+.trimmer-tool .trim-handle { position: absolute; top: 0; bottom: 0; z-index: 2; display: grid; place-items: center; width: var(--trim-grip); min-width: var(--trim-grip); min-height: 44px; padding: 0; border: 1px solid #c5cbb8; border-radius: 8px; background: #fff; box-shadow: 0 2px 6px #1c241e33; touch-action: none; cursor: ew-resize; }
+.trimmer-tool .trim-handle-start { transform: translateX(-100%); }
 .trimmer-tool .trim-handle-end { z-index: 3; }
-.trimmer-tool .trim-handle::after { content: ''; width: 3px; height: 22px; border-radius: 2px; background: #ad452b; }
+.trimmer-tool .trim-handle::after { content: ''; width: 2px; height: 18px; border-radius: 2px; background: #ad452b; }
 .trimmer-tool .trim-readout, .trimmer-tool .trim-status { display: flex; justify-content: space-between; gap: 12px; margin: 12px 2px 0; color: #3d4a38; font-size: 16px; font-weight: 650; letter-spacing: -.2px; font-variant-numeric: tabular-nums; line-height: 1.3; }
 .trimmer-tool .trim-status { justify-content: flex-start; font-size: 13px; font-weight: 500; }
 .trimmer-tool .file-details { display: flex; align-items: center; gap: 10px; margin-top: 13px; color: #626b60; }
@@ -121,6 +123,6 @@
 [data-theme='dark'] .trimmer-tool .download-button { background: #b2cd97; color: #1b2815; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes travel { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
-@media (max-width: 800px) { .trimmer-tool .upload-panel { padding: 22px; } .trimmer-tool .settings-panel { padding: 10px; } .trimmer-tool .trim-stage { padding: 16px 22px 22px; } .trimmer-tool .preview video { height: 360px; } .trimmer-tool .section-note { display: none; } .trimmer-tool .intro-tags { gap: 12px; font-size: 10px; } .trimmer-tool .engine-label { display: none; } }
+@media (max-width: 800px) { .trimmer-tool .upload-panel { padding: 22px; } .trimmer-tool .settings-panel { padding: 10px; } .trimmer-tool .trim-stage { padding: 16px 22px 22px; } .trimmer-tool .trim-track { --trim-grip: 28px; } .trimmer-tool .preview video { height: 360px; } .trimmer-tool .section-note { display: none; } .trimmer-tool .intro-tags { gap: 12px; font-size: 10px; } .trimmer-tool .engine-label { display: none; } }
 @media (max-width: 620px) { .trimmer-tool .intro-tags { flex-wrap: wrap; row-gap: 10px; } .trimmer-tool .intro-tags > span:last-child { display: none; } .trimmer-tool .workspace { grid-template-columns: minmax(0, 1fr); grid-template-areas: "upload" "trim" "settings"; } .trimmer-tool .settings-panel { border-left: 0; border-top: 1px solid #e7e8e1; } .trimmer-tool .dropzone { min-height: 280px; } .trimmer-tool .preview video { height: 300px; } .trimmer-tool .trim-stage { padding-left: 32px; padding-right: 32px; } .trimmer-tool .trim-readout { font-size: 14px; } .trimmer-tool .result-card { align-items: flex-start; } .trimmer-tool .download-button { width: 100%; justify-content: center; } .trimmer-tool .status-heading { flex-wrap: wrap; } .trimmer-tool .under-workspace { align-items: flex-start; line-height: 1.7; } .trimmer-tool .under-workspace svg { flex-shrink: 0; margin-top: 1px; } }
 [data-theme='dark'] .trimmer-tool .settings-panel { border-top-color: #414b42; }

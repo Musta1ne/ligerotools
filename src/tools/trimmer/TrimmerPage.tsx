@@ -70,15 +70,17 @@ function TrimBar({
   function onSelectionPointerMove(event: PointerEvent<HTMLDivElement>) {
     const origin = shiftDrag.current
     if (!origin || !event.currentTarget.hasPointerCapture(event.pointerId)) return
-    if (!origin.moved && event.clientX === origin.clientX) return
+    if (!origin.moved && Math.abs(event.clientX - origin.clientX) < 5) return
     origin.moved = true
     const delta = timeAt(event.clientX) - origin.time
     onShiftWindow(shiftTrimWindow(origin.start, origin.end, delta, duration))
   }
 
   function onSelectionPointerUp(event: PointerEvent<HTMLDivElement>) {
+    const origin = shiftDrag.current
     shiftDrag.current = null
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    if (event.type !== 'pointercancel' && origin && !origin.moved) onSeek(origin.time)
   }
 
   function onHandlePointerDown(edge: TrimEdge, event: PointerEvent<HTMLButtonElement>) {
@@ -125,22 +127,24 @@ function TrimBar({
 
   return (
     <div className={`trim-bar${active ? '' : ' is-inactive'}`} role="group" aria-label="Barra de recorte" aria-disabled={active ? undefined : true}>
-      <div className="trim-track" ref={trackRef} onPointerDown={onTrackPointerDown}>
-        {active && (
-          <>
-            <div
-              className="trim-selection"
-              style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }}
-              onPointerDown={onSelectionPointerDown}
-              onPointerMove={onSelectionPointerMove}
-              onPointerUp={onSelectionPointerUp}
-              onPointerCancel={onSelectionPointerUp}
-            />
-            <div className="trim-playhead" style={{ left: `${playPct}%` }} />
-            {handle('start', startPct, 'Inicio del recorte', 0, Math.max(0, end - 0.1))}
-            {handle('end', endPct, 'Fin del recorte', Math.min(duration, start + 0.1), duration)}
-          </>
-        )}
+      <div className="trim-track" onPointerDown={onTrackPointerDown}>
+        <div className="trim-scale" ref={trackRef}>
+          {active && (
+            <>
+              <div
+                className="trim-selection"
+                style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }}
+                onPointerDown={onSelectionPointerDown}
+                onPointerMove={onSelectionPointerMove}
+                onPointerUp={onSelectionPointerUp}
+                onPointerCancel={onSelectionPointerUp}
+              />
+              <div className="trim-playhead" style={{ left: `${playPct}%` }} />
+              {handle('start', startPct, 'Inicio del recorte', 0, Math.max(0, end - 0.1))}
+              {handle('end', endPct, 'Fin del recorte', Math.min(duration, start + 0.1), duration)}
+            </>
+          )}
+        </div>
       </div>
       {active ? (
         <p className="trim-readout"><span>Inicio {formatTrimClock(start)}</span><span>Duración {formatTrimClock(Math.max(0, end - start))}</span><span>Fin {formatTrimClock(end)}</span></p>
