@@ -215,6 +215,25 @@ test('clampTrimEdge keeps at least 0.1s inside the duration', () => {
   }
 })
 
+test('shiftTrimWindow keeps a 10s span inside the video', () => {
+  const { shiftTrimWindow } = harness().api
+  const moved = shiftTrimWindow(5, 15, 3, 40)
+  assert.deepEqual(moved, { start: 8, end: 18 })
+  assert.equal(moved.end - moved.start, 10)
+
+  const atStart = shiftTrimWindow(2, 12, -9, 40)
+  assert.deepEqual(atStart, { start: 0, end: 10 })
+  assert.equal(atStart.end - atStart.start, 10)
+
+  const atEnd = shiftTrimWindow(20, 30, 8, 32)
+  assert.deepEqual(atEnd, { start: 22, end: 32 })
+  assert.equal(atEnd.end - atEnd.start, 10)
+
+  const still = shiftTrimWindow(5, 15, 0, 40)
+  assert.deepEqual(still, { start: 5, end: 15 })
+  assert.equal(still.end - still.start, 10)
+})
+
 test('previewPlayback stays inside the selected trim', () => {
   const { previewPlayback } = harness().api
   const before = previewPlayback(0.4, 1, 4)

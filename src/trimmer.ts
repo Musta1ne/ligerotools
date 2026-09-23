@@ -64,6 +64,17 @@ export function clampTrimEdge(edge: TrimEdge, seconds: number, start: number, en
   return { start: roundMillis(nextStart), end: roundMillis(nextEnd) }
 }
 
+export function shiftTrimWindow(start: number, end: number, delta: number, duration: number) {
+  const length = Number.isFinite(duration) && duration > 0 ? duration : 0
+  const rawStart = finiteOr(start, 0)
+  const rawEnd = finiteOr(end, rawStart)
+  const windowStart = clamp(Math.min(rawStart, rawEnd), 0, length)
+  const windowEnd = clamp(Math.max(rawStart, rawEnd), 0, length)
+  const span = windowEnd - windowStart
+  const nextStart = clamp(windowStart + finiteOr(delta, 0), 0, Math.max(0, length - span))
+  return { start: roundMillis(nextStart), end: roundMillis(nextStart + span) }
+}
+
 export function previewPlayback(current: number, start: number, end: number) {
   if (!Number.isFinite(current) || !Number.isFinite(start) || !Number.isFinite(end) || !(end > start)) {
     return { jumpToStart: false, pause: false }

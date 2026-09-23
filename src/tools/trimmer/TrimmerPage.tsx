@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, SyntheticEvent } from 'react'
 import { ArrowDownToLine, ArrowRight, Check, FileVideo, HardDrive, Info, LoaderCircle, LockKeyhole, Scissors, ShieldCheck, Upload, X } from 'lucide-react'
-import { clampTrimEdge, disposeIdleEngine, formatTrimClock, MAX_INPUT_BYTES, previewPlayback, trimRangeError, trimVideo } from '../../trimmer'
+import { clampTrimEdge, disposeIdleEngine, formatTrimClock, MAX_INPUT_BYTES, previewPlayback, shiftTrimWindow, trimRangeError, trimVideo } from '../../trimmer'
 import type { TrimEdge, TrimResult, TrimUpdate } from '../../trimmer'
 import './trimmer.css'
 
@@ -24,6 +24,7 @@ function TrimBar({
   onSeek,
   onChangeEdge,
   onNudge,
+  onShiftWindow,
 }: {
   active: boolean
   busy: boolean
@@ -36,8 +37,10 @@ function TrimBar({
   onSeek: (seconds: number) => void
   onChangeEdge: (edge: TrimEdge, seconds: number) => void
   onNudge: (edge: TrimEdge, delta: number) => void
+  onShiftWindow: (next: { start: number; end: number }) => void
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
+  const shiftDrag = useRef<{ time: number; clientX: number; start: number; end: number; moved: boolean } | null>(null)
   const startPct = percent(start, duration)
   const endPct = percent(end, duration)
   const playPct = percent(playhead, duration)
@@ -55,6 +58,27 @@ function TrimBar({
     if (event.button !== 0 || busy || !active) return
     if (event.target instanceof Element && event.target.closest('button')) return
     onSeek(timeAt(event.clientX))
+  }
+
+  function onSelectionPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || busy || !active) return
+    event.stopPropagation()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    shiftDrag.current = { time: timeAt(event.clientX), clientX: event.clientX, start, end, moved: false }
+  }
+
+  function onSelectionPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const origin = shiftDrag.current
+    if (!origin || !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    if (!origin.moved && event.clientX === origin.clientX) return
+    origin.moved = true
+    const delta = timeAt(event.clientX) - origin.time
+    onShiftWindow(shiftTrimWindow(origin.start, origin.end, delta, duration))
+  }
+
+  function onSelectionPointerUp(event: PointerEvent<HTMLDivElement>) {
+    shiftDrag.current = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
   function onHandlePointerDown(edge: TrimEdge, event: PointerEvent<HTMLButtonElement>) {
@@ -104,7 +128,14 @@ function TrimBar({
       <div className="trim-track" ref={trackRef} onPointerDown={onTrackPointerDown}>
         {active && (
           <>
-            <div className="trim-selection" style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }} />
+            <div
+              className="trim-selection"
+              style={{ left: `${startPct}%`, width: `${Math.max(0, endPct - startPct)}%` }}
+              onPointerDown={onSelectionPointerDown}
+              onPointerMove={onSelectionPointerMove}
+              onPointerUp={onSelectionPointerUp}
+              onPointerCancel={onSelectionPointerUp}
+            />
             <div className="trim-playhead" style={{ left: `${playPct}%` }} />
             {handle('start', startPct, 'Inicio del recorte', 0, Math.max(0, end - 0.1))}
             {handle('end', endPct, 'Fin del recorte', Math.min(duration, start + 0.1), duration)}
@@ -323,6 +354,20 @@ function TrimmerPage() {
     setError('')
   }
 
+  function shiftWindow(next: { start: number; end: number }) {
+    playToken.current = 0
+    clearEndTimer()
+    const length = durationRef.current
+    if (length === null || !Number.isFinite(length) || length <= 0) return
+    spanRef.current = next
+    endTouched.current = true
+    setStartSec(next.start)
+    setEndSec(next.end)
+    showFrame(next.start, true)
+    clearResult()
+    setError('')
+  }
+
   async function startTrim() {
     if (!mounted.current || !file || controller.current || endSec === null) return
     const known = duration !== null && Number.isFinite(duration) && duration > 0 ? duration : undefined
@@ -397,12 +442,12 @@ function TrimmerPage() {
           <div className="local-note"><LockKeyhole size={16} /><p>Tu video se queda contigo.<br /><span>Todo el procesamiento ocurre en este navegador.</span></p></div>
         </div>
 
-        {file && <div className="trim-stage"><TrimBar active={rangeReady} busy={busy} start={startSec} end={endSec ?? 0} duration={knownDuration ?? 0} playhead={playhead} inactiveLabel={inactiveLabel} describedBy={rangeMessage ? 'trim-range-error' : undefined} onSeek={onTrackSeek} onChangeEdge={changeEdge} onNudge={(edge, delta) => changeEdge(edge, (edge === 'start' ? spanRef.current.start : spanRef.current.end) + delta)} /></div>}
+        {file && <div className="trim-stage"><TrimBar active={rangeReady} busy={busy} start={startSec} end={endSec ?? 0} duration={knownDuration ?? 0} playhead={playhead} inactiveLabel={inactiveLabel} describedBy={rangeMessage ? 'trim-range-error' : undefined} onSeek={onTrackSeek} onChangeEdge={changeEdge} onNudge={(edge, delta) => changeEdge(edge, (edge === 'start' ? spanRef.current.start : spanRef.current.end) + delta)} onShiftWindow={shiftWindow} /></div>}
 
         <div className="settings-panel">
           <div className="section-title"><span className="step">02</span><h2>Elige el tramo</h2><Scissors className="settings-icon" size={17} /></div>
           <fieldset disabled={busy}>
-            <p className="field-hint">Arrastra las asas de la barra. Las flechas mueven 0,1 s y Shift las mueve 1 s.</p>
+            <p className="field-hint">Arrastra el naranja para mover el tramo. Las asas lo alargan. Flechas: 0,1 s; Shift: 1 s.</p>
             {rangeMessage && <p className="range-error" id="trim-range-error" role="status">{rangeMessage}</p>}
             <div className="output-format"><span>Salida</span><strong>MP4 <span>H.264 · AAC si hay audio</span></strong></div>
           </fieldset>
