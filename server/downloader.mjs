@@ -71,6 +71,7 @@ function runYtDlp(args, { timeout = 60_000, signal, onOutput } = {}) {
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     )
     let stdout = ''
+    let stderr = ''
     let settled = false
     const fail = (error) => {
       if (settled) return
@@ -92,20 +93,23 @@ function runYtDlp(args, { timeout = 60_000, signal, onOutput } = {}) {
       else if (stdout.length < 8_000_000) stdout += chunk
       else child.kill()
     })
-    child.stderr.resume()
+    child.stderr.on('data', (chunk) => {
+      stderr = (stderr + chunk).slice(-2000)
+    })
     child.on('close', (code) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
       signal?.removeEventListener('abort', abort)
       if (signal?.aborted) reject(new Error('Descarga cancelada.'))
-      else if (code !== 0)
+      else if (code !== 0) {
+        console.error(`[DEBUG-downloader-ytdlp] exit=${code} ${stderr}`)
         reject(
           new Error(
             'No se pudo obtener este video. Puede ser privado, estar bloqueado o haber cambiado la plataforma.',
           ),
         )
-      else resolve(stdout)
+      } else resolve(stdout)
     })
   })
 }
