@@ -60,7 +60,6 @@ function runYtDlp(args, { timeout = 60_000, signal, onOutput } = {}) {
         '--ignore-config',
         '--no-playlist',
         '--no-warnings',
-        '--force-ipv4',
         '--socket-timeout',
         '15',
         '--retries',
@@ -104,10 +103,11 @@ function runYtDlp(args, { timeout = 60_000, signal, onOutput } = {}) {
       signal?.removeEventListener('abort', abort)
       if (signal?.aborted) reject(new Error('Descarga cancelada.'))
       else if (code !== 0) {
-        console.error(`[DEBUG-downloader-ytdlp] exit=${code} ${stderr}`)
         reject(
           new Error(
-            'No se pudo obtener este video. Puede ser privado, estar bloqueado o haber cambiado la plataforma.',
+            /Sign in to confirm you.re not a bot/i.test(stderr)
+              ? 'YouTube está bloqueando las solicitudes desde este servidor. No podemos descargar este video por ahora.'
+              : 'No se pudo obtener este video. Puede ser privado, estar bloqueado o haber cambiado la plataforma.',
           ),
         )
       } else resolve(stdout)
