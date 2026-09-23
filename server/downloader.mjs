@@ -60,6 +60,7 @@ function runYtDlp(args, { timeout = 60_000, signal, onOutput } = {}) {
         '--ignore-config',
         '--no-playlist',
         '--no-warnings',
+        '--force-ipv4',
         '--socket-timeout',
         '15',
         '--retries',
