@@ -4,3 +4,6 @@ dist
 .agents
 .claude
 agent
+docs
+*.log
+*.local

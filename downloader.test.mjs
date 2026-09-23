@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { createServer } from 'node:net'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   parseVideoURL,
   qualityOptions,
@@ -82,4 +85,53 @@ test('creates lower choices from a single available 1080p source', () => {
 
 test('download filename cannot inject headers or path separators', () => {
   assert.equal(safeFilename('Canción\r\n../parte', 'mp3'), 'Cancion..parte.mp3')
+})
+
+test('local Vite requests reach the downloader while other origins stay blocked', async () => {
+  const listener = createServer()
+  await new Promise((resolve) => listener.listen(0, '127.0.0.1', resolve))
+  const port = listener.address().port
+  await new Promise((resolve) => listener.close(resolve))
+
+  const child = spawn(
+    'node',
+    [fileURLToPath(new URL('./server/downloader.mjs', import.meta.url))],
+    {
+      env: {
+        ...process.env,
+        DOWNLOADER_HOST: '127.0.0.1',
+        DOWNLOADER_PORT: String(port),
+        DOWNLOADER_ORIGIN: '',
+      },
+      stdio: 'ignore',
+      windowsHide: true,
+    },
+  )
+  const endpoint = `http://127.0.0.1:${port}/api/downloader/health`
+  try {
+    let ready = false
+    for (let attempt = 0; attempt < 30; attempt++) {
+      try {
+        const response = await fetch(endpoint)
+        ready = response.ok
+        if (ready) break
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+    }
+    assert.ok(ready, 'downloader API did not start')
+
+    const local = await fetch(endpoint.replace('/health', '/inspect'), {
+      method: 'POST',
+      headers: { Origin: 'http://127.0.0.1:5173', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'invalid-url' }),
+    })
+    assert.equal(local.status, 400)
+    assert.deepEqual(await local.json(), { error: 'Pega un enlace válido.' })
+
+    const untrusted = await fetch(endpoint, { headers: { Origin: 'https://example.com' } })
+    assert.equal(untrusted.status, 403)
+  } finally {
+    child.kill()
+  }
 })

@@ -21,7 +21,9 @@ bun run dev
 
 Vite dirige `/api/downloader` al servicio local en el puerto 8787. También puedes definir `YT_DLP_PATH` si el ejecutable tiene otra ubicación. El endpoint `GET /api/downloader/health` comprueba que el servicio responde; la extracción requiere además que `yt-dlp` y FFmpeg funcionen.
 
-Para producción, despliega `Dockerfile.downloader` como servicio persistente con almacenamiento temporal y configura `DOWNLOADER_ORIGIN=https://tu-dominio-web` en él. Al construir la web, define `VITE_DOWNLOADER_API_URL=https://tu-dominio-del-servicio` (sin barra final). El backend debe estar disponible por HTTPS. Netlify y Vercel siguen publicando solo `dist`: su despliegue estático no ejecuta Downloader hasta que se conecte ese servicio. No se ha configurado ni desplegado un destino de producción en este repositorio.
+Para conectar el despliegue de Vercel, crea un Blueprint de Render desde `render.yaml`. El Blueprint construye `Dockerfile.downloader`, configura el origen permitido y comprueba `/api/downloader/health`. Usa el plan gratuito para la primera prueba; este plan se suspende tras 15 minutos sin tráfico y puede tardar en responder al primer pedido. Para descargas frecuentes, cambia a un plan que permanezca activo.
+
+Cuando Render termine, verifica que `https://<tu-servicio>.onrender.com/api/downloader/health` devuelva JSON con `{"ok":true}`. Configura `VITE_DOWNLOADER_API_URL=https://<tu-servicio>.onrender.com` en el entorno Production del proyecto de Vercel y vuelve a desplegar la web: Vite incorpora esta URL durante el build. Prueba la búsqueda de calidades, la preparación y la descarga desde `/downloader` en Vercel. No hagas el despliegue de la web antes de comprobar que el backend responde. El backend debe estar disponible por HTTPS. Netlify y Vercel publican solo `dist`; sin la variable, `/api/downloader` cae en la página estática.
 
 ## Desarrollo y verificación
 

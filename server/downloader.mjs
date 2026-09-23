@@ -7,21 +7,38 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseVideoURL, qualityOptions, safeFilename } from './downloader-core.mjs'
 
-const PORT = Number(process.env.DOWNLOADER_PORT || 8787)
+const PORT = Number(process.env.DOWNLOADER_PORT || process.env.PORT || 8787)
 const HOST = process.env.DOWNLOADER_HOST || '127.0.0.1'
 const allowedOrigin = process.env.DOWNLOADER_ORIGIN || ''
+const localServer = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1'
 const sessions = new Map()
 const jobs = new Map()
 const SESSION_TTL = 10 * 60_000
 const FILE_TTL = 20 * 60_000
 let active = 0
 
+function acceptsOrigin(origin, host) {
+  if (!origin) return true
+  if (origin === `http://${host}` || origin === `https://${host}` || origin === allowedOrigin)
+    return true
+  if (!localServer) return false
+  try {
+    const url = new URL(origin)
+    return (
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
+    )
+  } catch {
+    return false
+  }
+}
+
 function headers(request) {
   const origin = request.headers.origin
   return {
     'Cache-Control': 'no-store',
     'Cross-Origin-Resource-Policy': 'cross-origin',
-    ...(allowedOrigin && origin === allowedOrigin
+    ...(origin && acceptsOrigin(origin, request.headers.host)
       ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' }
       : {}),
   }
@@ -197,12 +214,7 @@ async function startJob(job, session, option) {
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url || '/', 'http://localhost').pathname
   const origin = request.headers.origin
-  if (
-    origin &&
-    origin !== `http://${request.headers.host}` &&
-    origin !== `https://${request.headers.host}` &&
-    origin !== allowedOrigin
-  ) {
+  if (!acceptsOrigin(origin, request.headers.host)) {
     return json(request, response, 403, { error: 'Origen no permitido.' })
   }
   if (request.method === 'OPTIONS') {

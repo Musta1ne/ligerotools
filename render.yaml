@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ligerotools-downloader
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.downloader
+    dockerContext: .
+    healthCheckPath: /api/downloader/health
+    envVars:
+      - key: DOWNLOADER_ORIGIN
+        value: https://ligerotools.vercel.app
