@@ -11,23 +11,14 @@ const PORT = Number(process.env.DOWNLOADER_PORT || process.env.PORT || 8787)
 const HOST = process.env.DOWNLOADER_HOST || '127.0.0.1'
 const allowedOrigin = process.env.DOWNLOADER_ORIGIN || ''
 const localServer = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1'
-const localHelper = process.env.DOWNLOADER_LOCAL_HELPER === '1'
-const helperOrigins = new Set([
-  'https://ligerotools.vercel.app',
-  'http://127.0.0.1:5173',
-  'http://localhost:5173',
-])
-if (localHelper && !localServer) throw new Error('El ayudante local solo puede escuchar en este equipo.')
 const sessions = new Map()
 const jobs = new Map()
 const SESSION_TTL = 10 * 60_000
 const FILE_TTL = 20 * 60_000
 let active = 0
-let lastActivity = Date.now()
 
 function acceptsOrigin(origin, host) {
   if (!origin) return true
-  if (localHelper) return helperOrigins.has(origin)
   if (origin === `http://${host}` || origin === `https://${host}` || origin === allowedOrigin)
     return true
   if (!localServer) return false
@@ -231,19 +222,17 @@ const server = createServer(async (request, response) => {
   if (!acceptsOrigin(origin, request.headers.host)) {
     return json(request, response, 403, { error: 'Origen no permitido.' })
   }
-  if (localHelper) lastActivity = Date.now()
   if (request.method === 'OPTIONS') {
     response.writeHead(204, {
       ...headers(request),
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
-      ...(localHelper ? { 'Access-Control-Allow-Private-Network': 'true' } : {}),
     })
     return response.end()
   }
   try {
     if (request.method === 'GET' && pathname === '/api/downloader/health') {
-      return json(request, response, 200, { ok: true, localHelper })
+      return json(request, response, 200, { ok: true })
     }
     if (request.method === 'POST' && pathname === '/api/downloader/inspect') {
       if (active >= 2)
@@ -330,10 +319,6 @@ setInterval(() => {
     if (job.status === 'working' || now - job.completed < FILE_TTL) continue
     jobs.delete(id)
     if (job.dir) void rm(job.dir, { recursive: true, force: true })
-  }
-  if (localHelper && active === 0 && now - lastActivity > 30 * 60_000) {
-    console.log('Ayudante local detenido tras 30 minutos sin uso.')
-    server.close()
   }
 }, 60_000).unref()
 
