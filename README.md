@@ -34,7 +34,7 @@ bun run format:check
 bun run lint
 bunx tsc -b
 bun run build
-bun test compressor.test.mjs platform.test.mjs
+bun test compressor.test.mjs platform.test.mjs trimmer.test.mjs
 bun run preview
 ```
 
@@ -60,13 +60,17 @@ src/
   tools/compressor/
     CompressorPage.tsx            Estado, validación, archivos y presentación
     compressor.css                Estilos aislados y cargados con la herramienta
+  tools/trimmer/
+    TrimmerPage.tsx               Estado, validación, archivos y presentación
+    trimmer.css                   Estilos aislados y cargados con la herramienta
   compressor.ts                   Motor existente, exclusivo del compresor
+  trimmer.ts                      Motor del recortador, exclusivo de esa herramienta
   index.css                       Base visual y estilos compartidos
 ```
 
 Vite/React no proporciona rutas basadas en archivos y este proyecto no tenía router. Se usa History API con `popstate`, enlaces reales y soporte de atrás/adelante; no se agrega una biblioteca para estas rutas planas. `App` mantiene el header fuera de Suspense y del límite de errores. El foco pasa al contenido al navegar y hay enlace para saltar la navegación.
 
-El registro solo contiene datos e iconos ligeros: nunca importa páginas, motores o clientes de API. La tabla `toolPages` hace imports dinámicos. El catálogo no carga el código del compresor ni su motor. Los estilos de herramienta deben estar acotados a su clase raíz, porque el CSS descargado puede permanecer después de navegar.
+El registro solo contiene datos e iconos ligeros: nunca importa páginas, motores o clientes de API. La tabla `toolPages` hace imports dinámicos. El catálogo no carga el código de las herramientas ni sus motores. Los estilos de herramienta deben estar acotados a su clase raíz, porque el CSS descargado puede permanecer después de navegar.
 
 ## Agregar la próxima herramienta
 
