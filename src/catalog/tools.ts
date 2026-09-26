@@ -1,4 +1,4 @@
-import { Download, FileVideo, Scissors } from 'lucide-react'
+import { Download, FileVideo, Scissors, ScanFace } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ToolMetadata {
@@ -41,6 +41,16 @@ export const tools = [
       'Elige el inicio y el fin de un video y descarga el recorte en MP4. Procesamiento en tu navegador.',
     category: 'Video',
     icon: Scissors,
+  },
+  {
+    id: 'image-background-remover',
+    path: '/quitar-fondo',
+    name: 'Quitafondos de imágenes',
+    brandSuffix: 'Background',
+    description:
+      'Quita el fondo de una imagen automáticamente o con pincel y descarga un PNG transparente. Procesamiento en tu navegador.',
+    category: 'Imagen',
+    icon: ScanFace,
   },
 ] as const satisfies readonly ToolMetadata[]
 

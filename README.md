@@ -1,12 +1,16 @@
 # Ligero.Tools
 
-Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor`, el recortador en `/trimmer` y el descargador en `/downloader`. El compresor y el recortador procesan archivos localmente; Downloader usa un servicio separado.
+Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor`, el recortador en `/trimmer`, el quitafondos en `/quitar-fondo` y el descargador en `/downloader`. El compresor, el recortador y el quitafondos procesan archivos localmente; Downloader usa un servicio separado.
 
 ## Compresor
 
 Ligero.Compressor procesa videos localmente con FFmpeg.wasm. Acepta un video de hasta 500 MB, permite elegir un presupuesto en MB decimales y descargar MP4 (H.264 + AAC cuando hay audio). La resolución se ajusta automáticamente, con un máximo de 720p; no hay selector de resolución. El objetivo es un presupuesto, no un tamaño exacto garantizado.
 
 Conserva presets, progreso, errores, cancelación y modo rápido opcional de hasta cuatro hilos. El motor del modo elegido se carga al comprimir, reutiliza una instancia entre trabajos y elimina archivos temporales y listeners. Al salir de la herramienta se cancela el trabajo, se libera el motor y se revocan las URLs de vista previa y descarga. Volver a entrar inicia un estado nuevo.
+
+## Quitafondos
+
+Ligero.Background acepta una imagen JPG, PNG o WebP de hasta 30 MB y 12 megapíxeles. Permite borrar o recuperar zonas con pincel desde 1 px, con tamaño y suavidad ajustables por barra o teclado, vista previa antes de pintar y zoom hasta 800%, o quitar el fondo automáticamente con un modelo local descargado al pulsar el botón. El control Bordes reduce halos de color después del automático. Las pinceladas permanecen si se ejecuta el automático después de editar. El resultado se descarga como PNG transparente a las dimensiones originales. La primera carga del automático descarga aproximadamente 60 MB; si falla, la edición manual sigue disponible. [Diseño y casos de aceptación](docs/eliminacion-de-fondo.md).
 
 ## Downloader
 
@@ -35,6 +39,7 @@ bun run lint
 bunx tsc -b
 bun run build
 bun test compressor.test.mjs platform.test.mjs trimmer.test.mjs
+bun run test:background-browser
 bun run preview
 ```
 
@@ -43,6 +48,8 @@ bun run preview
 `bun run format` aplica Prettier al repositorio y `bun run format:check` verifica el formato sin modificar archivos.
 
 Las pruebas usan `bun test`, TypeScript y mocks, sin otro framework. Las del motor cubren progreso, reutilización, reintentos, cancelación y liberación; no ejecutan FFmpeg real. Las de plataforma cubren metadatos, rutas, enlaces, marcas y el límite de imports diferidos. La compresión real, los workers, WebAssembly y la descarga requieren una prueba en navegador.
+
+`test:background-browser` necesita Chrome local (o `CHROME_PATH` con la ruta al ejecutable). Comprueba el zoom real, el desplazamiento, la vista previa del pincel y el pincel de 1 px.
 
 ## Estructura y límites
 
@@ -63,6 +70,11 @@ src/
   tools/trimmer/
     TrimmerPage.tsx               Estado, validación, archivos y presentación
     trimmer.css                   Estilos aislados y cargados con la herramienta
+  tools/background/
+    BackgroundPage.tsx            Flujo de carga, edición y descarga
+    editor.ts                     Pinceladas, máscara y exportación PNG
+    background.worker.ts          Inferencia local con ONNX Runtime Web
+    background.css                Estilos aislados del editor
   compressor.ts                   Motor existente, exclusivo del compresor
   trimmer.ts                      Motor del recortador, exclusivo de esa herramienta
   index.css                       Base visual y estilos compartidos
