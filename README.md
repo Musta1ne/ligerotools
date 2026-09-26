@@ -1,6 +1,6 @@
 # Ligero.Tools
 
-Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor` y el descargador en `/downloader`. El compresor es local; Downloader usa un servicio separado.
+Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor`, el recortador en `/trimmer` y el descargador en `/downloader`. El compresor y el recortador procesan archivos localmente; Downloader usa un servicio separado.
 
 ## Compresor
 

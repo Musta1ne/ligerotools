@@ -53,8 +53,8 @@ export function HomePage() {
       <section className="catalog-note" aria-labelledby="catalog-note-title">
         <h2 id="catalog-note-title">Una tarea. Una herramienta.</h2>
         <p>
-          Comprime un archivo o pega el enlace de un video público para descargarlo. Las opciones y
-          los límites se explican dentro de cada herramienta.
+          Comprime o recorta un video en tu dispositivo, o pega un enlace público para descargarlo.
+          Las opciones y los límites se explican dentro de cada herramienta.
         </p>
       </section>
     </>

@@ -1,4 +1,4 @@
-import { Download, FileVideo } from 'lucide-react'
+import { Download, FileVideo, Scissors } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ToolMetadata {
@@ -31,6 +31,16 @@ export const tools = [
       'Descarga videos públicos de YouTube, X, Instagram y TikTok en la calidad disponible que elijas, o extrae su audio en MP3.',
     category: 'Video y audio',
     icon: Download,
+  },
+  {
+    id: 'video-trimmer',
+    path: '/trimmer',
+    name: 'Recortador de video',
+    brandSuffix: 'Trimmer',
+    description:
+      'Elige el inicio y el fin de un video y descarga el recorte en MP4. Procesamiento en tu navegador.',
+    category: 'Video',
+    icon: Scissors,
   },
 ] as const satisfies readonly ToolMetadata[]
 
