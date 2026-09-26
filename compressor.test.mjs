@@ -5,7 +5,9 @@ import vm from 'node:vm'
 import ts from 'typescript'
 
 const source = readFileSync(new URL('./src/compressor.ts', import.meta.url), 'utf8')
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText
 
 function harness(outputSizes = [1000, 1000], hooks = {}) {
   let instances = 0
@@ -17,30 +19,53 @@ function harness(outputSizes = [1000, 1000], hooks = {}) {
     terminations = 0
     deleted = []
     listeners = new Map()
-    constructor() { instances++; engines.push(this) }
-    on(event, callback) { this.listeners.set(event, callback) }
-    off(event) { this.listeners.delete(event) }
-    async load() { this.loaded = true }
+    constructor() {
+      instances++
+      engines.push(this)
+    }
+    on(event, callback) {
+      this.listeners.set(event, callback)
+    }
+    off(event) {
+      this.listeners.delete(event)
+    }
+    async load() {
+      this.loaded = true
+    }
     async writeFile() {}
-    async deleteFile(path) { this.deleted.push(path); await hooks.deleteFile?.(path) }
-    async ffprobe() { return 0 }
-    terminate() { this.loaded = false; this.terminations++ }
+    async deleteFile(path) {
+      this.deleted.push(path)
+      await hooks.deleteFile?.(path)
+    }
+    async ffprobe() {
+      return 0
+    }
+    terminate() {
+      this.loaded = false
+      this.terminations++
+    }
     async exec() {
       executions++
       const progress = this.listeners.get('progress')
       if (executions > 1) {
-        for (const value of [1152921504606.847, NaN, Infinity, -1, 1.1]) progress({ progress: value })
+        for (const value of [1152921504606.847, NaN, Infinity, -1, 1.1])
+          progress({ progress: value })
       }
       for (const value of [0, 0.2, 0.6, 0.4, 1]) progress({ progress: value })
       return 0
     }
     async readFile(path) {
-      if (path === 'probe.json') return JSON.stringify({ format: { duration: '8' }, streams: [{ codec_type: 'video' }] })
+      if (path === 'probe.json')
+        return JSON.stringify({ format: { duration: '8' }, streams: [{ codec_type: 'video' }] })
       return new Uint8Array(outputSizes[executions - 1])
     }
   }
   vm.runInNewContext(compiled, {
-    exports, Blob, Uint8Array, DOMException, SharedArrayBuffer,
+    exports,
+    Blob,
+    Uint8Array,
+    DOMException,
+    SharedArrayBuffer,
     crossOriginIsolated: true,
     require(name) {
       if (name === '@ffmpeg/ffmpeg') return { FFmpeg }
@@ -51,7 +76,12 @@ function harness(outputSizes = [1000, 1000], hooks = {}) {
   })
   const run = async (signal = new AbortController().signal) => {
     const updates = []
-    await exports.compressVideo({ size: 2_000_000 }, { targetMB: 1 }, (update) => updates.push(update), signal)
+    await exports.compressVideo(
+      { size: 2_000_000 },
+      { targetMB: 1 },
+      (update) => updates.push(update),
+      signal,
+    )
     return updates
   }
   return { run, dispose: exports.disposeIdleEngine, instances: () => instances, engines }
@@ -62,8 +92,14 @@ test('reused engine ignores invalid progress and continues advancing', async () 
   const first = await engine.run()
   const second = await engine.run()
   assert.equal(engine.instances(), 1)
-  assert.deepEqual(second, first.filter((update) => update.phase !== 'loading'))
-  assert.deepEqual(second.filter((update) => update.phase === 'compressing').map((update) => update.progress), [0, 0, 0.17, 0.51, 0.51, 0.85])
+  assert.deepEqual(
+    second,
+    first.filter((update) => update.phase !== 'loading'),
+  )
+  assert.deepEqual(
+    second.filter((update) => update.phase === 'compressing').map((update) => update.progress),
+    [0, 0, 0.17, 0.51, 0.51, 0.85],
+  )
   assert.equal(second.at(-1).progress, 1)
 })
 

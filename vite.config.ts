@@ -10,6 +10,6 @@ const headers = {
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   optimizeDeps: { exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'] },
-  server: { headers },
+  server: { headers, proxy: { '/api/downloader': 'http://127.0.0.1:8787' } },
   preview: { headers },
 })

@@ -10,7 +10,8 @@ export function usePathname() {
 }
 
 export function navigate(pathname: string) {
-  if (window.location.pathname === pathname && !window.location.search && !window.location.hash) return
+  if (window.location.pathname === pathname && !window.location.search && !window.location.hash)
+    return
   window.history.pushState(null, '', pathname)
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
