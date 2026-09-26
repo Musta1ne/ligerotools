@@ -10,13 +10,13 @@ Permitir que una persona separe del fondo uno o varios sujetos principales en fo
 2. Elegir entre iniciar la eliminación automática con el botón «Quitar fondo» o comenzar a editar con pincel.
 3. El automático intenta conservar todos los sujetos principales y eliminar el fondo, incluidas sus sombras. Se ejecuta en el navegador; antes de descargar el modelo, se informa el tamaño y se muestra el progreso. La descarga inicial necesaria para el automático tiene un tope de 100 MB.
 4. Corregir con pinceles para borrar y recuperar. Ofrecer tamaño desde 1 px de la imagen de salida y suavidad ajustables, zoom, desplazamiento, deshacer, rehacer y restablecer. Si el automático se ejecuta después de una edición manual, las pinceladas se conservan sobre el resultado automático. El control «Bordes» ajusta la limpieza del contorno del resultado automático.
-5. Previsualizar y descargar el resultado en PNG transparente, conservando las dimensiones originales cuando la imagen esté dentro del límite admitido.
+5. Previsualizar y descargar el resultado en PNG transparente. Conservar las dimensiones originales hasta 12 megapíxeles; para imágenes mayores, reducir el PNG a un máximo de 12 megapíxeles e informar las dimensiones de salida antes de descargar.
 
 ## Fallos y límites
 
 - Si el automático falla o no está disponible, informar el motivo y permitir la edición manual con la imagen y los cambios previos intactos.
 - Permitir cancelar el automático sin perder la imagen ni las correcciones previas.
-- Avisar antes de aceptar una imagen que exceda el límite de tamaño o dimensiones. El valor concreto se fijará con pruebas de memoria y exportación en móviles y escritorio.
+- Admitir imágenes de más de 12 megapíxeles sin crear lienzos de exportación a la resolución original. El archivo puede pesar hasta 30 MB; informar si supera ese límite.
 - No se exige que la herramienta funcione sin conexión. La imagen permanece en el dispositivo durante el procesamiento.
 - No se guardan proyectos ni se procesan lotes en la primera versión.
 

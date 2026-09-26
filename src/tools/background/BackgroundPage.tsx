@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent, PointerEvent } from 'react'
 import { ArrowDownToLine, Brush, Eraser, Hand, ImagePlus, LoaderCircle, Maximize2, Minimize2, Moon, Redo2, RotateCcw, ShieldCheck, Sparkles, Undo2, Upload, ZoomIn, ZoomOut } from 'lucide-react'
-import { BackgroundEditor, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS } from './editor'
+import { BackgroundEditor, MAX_IMAGE_BYTES } from './editor'
 import type { BrushMode } from './editor'
 import './background.css'
 
@@ -125,12 +125,17 @@ function BackgroundPage() {
   async function selectFile(selected?: File) {
     if (!selected) return
     setError('')
+    const selectedName = selected.name
+    const previousImageOpen = Boolean(editorRef.current)
+    function showFileError(message: string) {
+      setError(`No se pudo abrir "${selectedName}": ${message}${previousImageOpen ? ' La imagen anterior sigue abierta.' : ''}`)
+    }
     if (!accepted.includes(selected.type)) {
-      setError('Elige una imagen JPG, PNG o WebP.')
+      showFileError('elige una imagen JPG, PNG o WebP.')
       return
     }
     if (selected.size === 0 || selected.size > MAX_IMAGE_BYTES) {
-      setError('La imagen debe pesar hasta 30 MB.')
+      showFileError('la imagen debe pesar hasta 30 MB.')
       return
     }
     if (editorRef.current?.hasChanges && !downloaded && !window.confirm('Hay cambios sin descargar. ¿Reemplazar esta imagen?')) return
@@ -141,17 +146,21 @@ function BackgroundPage() {
     try {
       await image.decode()
       if (currentToken !== token.current) { URL.revokeObjectURL(url); return }
-      if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth * image.naturalHeight > MAX_IMAGE_PIXELS) {
-        throw new Error('La imagen debe tener hasta 12 megapíxeles.')
-      }
+      if (!image.naturalWidth || !image.naturalHeight) throw new Error('no se pudieron leer sus dimensiones.')
+      const node = canvasRef.current
+      if (!node) throw new Error('no se pudo abrir el editor.')
+      const nextEditor = new BackgroundEditor(image, node)
       cancelAuto()
       editorRef.current?.dispose()
       if (sourceURL.current) URL.revokeObjectURL(sourceURL.current)
-      sourceURL.current = url
-      const node = canvasRef.current
-      if (!node) throw new Error('No se pudo abrir el editor.')
-      editorRef.current = new BackgroundEditor(image, node)
-      setEditor(editorRef.current)
+      if (nextEditor.image === image) sourceURL.current = url
+      else {
+        URL.revokeObjectURL(url)
+        image.src = ''
+        sourceURL.current = ''
+      }
+      editorRef.current = nextEditor
+      setEditor(nextEditor)
       setFile(selected)
       setDownloaded(false)
       setEdgeCleanup(50)
@@ -160,7 +169,7 @@ function BackgroundPage() {
       setRevision((n) => n + 1)
     } catch (cause) {
       URL.revokeObjectURL(url)
-      setError(cause instanceof Error ? cause.message : 'No se pudo abrir la imagen.')
+      showFileError(cause instanceof Error ? cause.message : 'ocurrió un error al leer la imagen.')
     }
   }
 
@@ -384,8 +393,9 @@ function BackgroundPage() {
           </div>
         )}
 
+        {file && editor && editor.width !== editor.sourceWidth && <div className="background-resolution-note" role="status">Imagen original: {editor.sourceWidth} × {editor.sourceHeight} px. El PNG se descargará en {editor.width} × {editor.height} px para reducir el uso de memoria.</div>}
         <div ref={stageRef} className={`background-stage${dragging ? ' is-dragging' : ''}${darkGrid ? ' is-dark-grid' : ''}`} onDragOver={(event) => { event.preventDefault(); setDragging(true) }} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
-          {!file && <div className="background-empty"><Upload size={34} aria-hidden="true" /><h2>Arrastra tu imagen aquí</h2><p>O elige un archivo JPG, PNG o WebP de hasta 30 MB y 12 megapíxeles.</p><button type="button" className="background-button background-button-primary" onClick={() => inputRef.current?.click()}>Elegir imagen</button></div>}
+          {!file && <div className="background-empty"><Upload size={34} aria-hidden="true" /><h2>Arrastra tu imagen aquí</h2><p>O elige un archivo JPG, PNG o WebP de hasta 30 MB. Las imágenes grandes se reducen al exportar.</p><button type="button" className="background-button background-button-primary" onClick={() => inputRef.current?.click()}>Elegir imagen</button></div>}
           <div ref={viewportRef} className={`background-viewport${file ? '' : ' is-empty'}`}>
             <canvas ref={canvasRef} className={`background-canvas tool-${tool}${panning ? ' is-panning' : ''}`} style={{ width: displayWidth || undefined }} onContextMenu={(event) => event.preventDefault()} onPointerEnter={updateBrushCursor} onPointerLeave={() => setBrushCursor(null)} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} aria-label="Vista previa editable de la imagen" />
           </div>
@@ -396,7 +406,7 @@ function BackgroundPage() {
           </div>}
         </div>
 
-        {file && <div className="background-statusline"><span>{file.name} · {editor?.width} × {editor?.height} px</span><span>{tool === 'pan' ? 'Arrastra para mover la vista.' : 'Usa el botón derecho para mover la vista sin cambiar de herramienta.'}</span></div>}
+        {file && <div className="background-statusline"><span>{file.name} · {editor?.sourceWidth} × {editor?.sourceHeight} px</span><span>{tool === 'pan' ? 'Arrastra para mover la vista.' : 'Usa el botón derecho para mover la vista sin cambiar de herramienta.'}</span></div>}
         {busy && <div className="background-progress" role="status"><LoaderCircle size={18} className="background-spin" aria-hidden="true" /><span>{progress?.phase === 'download' ? `Descargando modelo… ${progress.percent}%` : 'Quitando fondo…'}</span>{progress?.phase === 'download' && <progress value={progress.percent} max="100" />}</div>}
         {error && <p className="background-error" role="alert">{error}</p>}
       </section>

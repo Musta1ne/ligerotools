@@ -57,8 +57,9 @@
 .background-zoom { padding: 2px; background: #fff; border: 1px solid #d9ded3; border-radius: 8px; }
 .background-zoom span { font-size: 12px; font-variant-numeric: tabular-nums; min-width: 42px; text-align: center; }
 .background-zoom button { border: 0; width: 36px; min-height: 36px; }
+.background-resolution-note { padding: 10px 20px; background: #fff5df; color: #6c4d19; font-size: 12px; }
 .background-workspace:fullscreen { display: flex; flex-direction: column; width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
-.background-workspace:fullscreen .background-toolbar, .background-workspace:fullscreen .background-controls, .background-workspace:fullscreen .background-statusline { flex: none; }
+.background-workspace:fullscreen .background-toolbar, .background-workspace:fullscreen .background-controls, .background-workspace:fullscreen .background-resolution-note, .background-workspace:fullscreen .background-statusline { flex: none; }
 .background-workspace:fullscreen .background-stage { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 .background-workspace:fullscreen .background-viewport { flex: 1; min-height: 0; max-height: none; }
 .background-statusline { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 11px 20px; color: #626b60; font-size: 12px; border-top: 1px solid #e7eae2; }
@@ -86,6 +87,7 @@
 [data-theme='dark'] .background-empty { background: #202722f2; border-color: #556251; }
 [data-theme='dark'] .background-button-primary { background: #ad452b; border-color: #ad452b; color: #fff; }
 [data-theme='dark'] .background-button-download { background: #2c3827; border-color: #536447; color: #c7dbb7; }
+[data-theme='dark'] .background-resolution-note { background: #382f21; color: #ead6ad; }
 [data-theme='dark'] .background-progress { background: #2c3827; color: #c7dbb7; }
 [data-theme='dark'] .background-error { background: #422e24; color: #ffad91; }
 @media (max-width: 700px) { .background-page { padding-top: 28px; } .background-toolbar, .background-controls { padding-left: 12px; padding-right: 12px; } .background-toolbar-group, .background-toolbar-actions { flex-wrap: wrap; } .background-toolbar-actions { width: 100%; } .background-toolbar-actions > .background-button-download { flex: 1 1 100%; } .background-viewport, .background-stage { min-height: 360px; } .background-workspace:fullscreen .background-viewport, .background-workspace:fullscreen .background-stage { min-height: 0; } }

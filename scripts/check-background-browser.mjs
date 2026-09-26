@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { createServer } from 'vite'
 import { chromium } from 'playwright-core'
 
@@ -191,7 +192,51 @@ try {
   assert.ok(controlRows.flat().every((center) => Math.abs(center - controlRows[0][0]) < 5), 'all brush controls must stay in one row at 1100px')
   const controlWidths = await controls.evaluate((node) => ({ scroll: node.scrollWidth, client: node.clientWidth }))
   assert.ok(controlWidths.scroll <= controlWidths.client + 1, `brush controls must fit without horizontal scrolling at 1100px: ${JSON.stringify(controlWidths)}`)
-  console.log('Background numeric brush controls, preview, 800% zoom, pan, and 1px brush passed')
+  const uploadPage = await browser.newPage()
+  await uploadPage.goto(`${server.resolvedUrls.local[0]}quitar-fondo`)
+  async function uploadImage(name, width, height) {
+    const base64 = await uploadPage.evaluate(({ width, height }) => {
+      const node = document.createElement('canvas')
+      node.width = width
+      node.height = height
+      node.getContext('2d').fillRect(0, 0, width, height)
+      return node.toDataURL('image/png').split(',')[1]
+    }, { width, height })
+    await uploadPage.locator('input[type=file]').setInputFiles({ name, mimeType: 'image/png', buffer: Buffer.from(base64, 'base64') })
+  }
+  await uploadImage('valid-2586x2750.png', 2586, 2750)
+  await uploadPage.getByText('valid-2586x2750.png', { exact: false }).waitFor()
+  assert.equal(await uploadPage.locator('.background-error').count(), 0, 'a 2586 × 2750 image must be accepted')
+  await uploadImage('large-4000x4000.png', 4000, 4000)
+  await uploadPage.getByText('large-4000x4000.png', { exact: false }).waitFor({ timeout: 3000 })
+  assert.equal(await uploadPage.locator('.background-error').count(), 0, 'an image over 12 MP must be accepted')
+  assert.match(await uploadPage.locator('.background-statusline').textContent(), /large-4000x4000\.png.*4000 × 4000/, 'the status must show the source dimensions')
+  assert.match(await uploadPage.locator('.background-resolution-note').textContent(), /3464 × 3464/, 'the editor must disclose the reduced PNG dimensions')
+  const downloadPromise = uploadPage.waitForEvent('download')
+  await uploadPage.getByRole('button', { name: 'Descargar PNG' }).click()
+  const largeDownload = await downloadPromise
+  const png = await readFile(await largeDownload.path())
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [3464, 3464], 'the exported PNG must use the disclosed dimensions')
+  await uploadPage.close()
+  const largePhotoPage = await browser.newPage()
+  await largePhotoPage.goto(`${server.resolvedUrls.local[0]}quitar-fondo`)
+  const largeJpeg = await largePhotoPage.evaluate(() => {
+    const node = document.createElement('canvas')
+    node.width = 6944
+    node.height = 9248
+    node.getContext('2d').fillRect(0, 0, node.width, node.height)
+    return node.toDataURL('image/jpeg', 0.5).split(',')[1]
+  })
+  await largePhotoPage.locator('input[type=file]').setInputFiles({ name: 'photo-6944x9248.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(largeJpeg, 'base64') })
+  await largePhotoPage.waitForFunction(() => document.querySelector('.background-statusline')?.textContent?.includes('photo-6944x9248.jpg'))
+  assert.equal(await largePhotoPage.locator('.background-error').count(), 0, 'the 6944 × 9248 image must be accepted')
+  assert.match(await largePhotoPage.locator('.background-resolution-note').textContent(), /3001 × 3997/, 'the 64 MP image must disclose its PNG dimensions')
+  const largePhotoDownloadPromise = largePhotoPage.waitForEvent('download')
+  await largePhotoPage.getByRole('button', { name: 'Descargar PNG' }).click()
+  const largePhotoDownload = await largePhotoDownloadPromise
+  const largePhotoPng = await readFile(await largePhotoDownload.path())
+  assert.deepEqual([largePhotoPng.readUInt32BE(16), largePhotoPng.readUInt32BE(20)], [3001, 3997], 'the 64 MP image must export at its disclosed dimensions')
+  console.log('Background controls, preview, pan, and large-image export passed')
 } finally {
   await browser?.close()
   await server.close()

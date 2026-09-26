@@ -10,7 +10,7 @@ Conserva presets, progreso, errores, cancelación y modo rápido opcional de has
 
 ## Quitafondos
 
-Ligero.Background acepta una imagen JPG, PNG o WebP de hasta 30 MB y 12 megapíxeles. Permite borrar o recuperar zonas con pincel desde 1 px, con tamaño y suavidad ajustables por barra o teclado, vista previa antes de pintar y zoom hasta 800%, o quitar el fondo automáticamente con un modelo local descargado al pulsar el botón. El control Bordes reduce halos de color después del automático. Las pinceladas permanecen si se ejecuta el automático después de editar. El resultado se descarga como PNG transparente a las dimensiones originales. La primera carga del automático descarga aproximadamente 60 MB; si falla, la edición manual sigue disponible. [Diseño y casos de aceptación](docs/eliminacion-de-fondo.md).
+Ligero.Background acepta una imagen JPG, PNG o WebP de hasta 30 MB. Permite borrar o recuperar zonas con pincel desde 1 px, con tamaño y suavidad ajustables por barra o teclado, vista previa antes de pintar y zoom hasta 800%, o quitar el fondo automáticamente con un modelo local descargado al pulsar el botón. El control Bordes reduce halos de color después del automático. Las pinceladas permanecen si se ejecuta el automático después de editar. El resultado se descarga como PNG transparente: conserva las dimensiones originales hasta 12 megapíxeles y reduce las imágenes mayores, avisando la resolución de salida. La primera carga del automático descarga aproximadamente 60 MB; si falla, la edición manual sigue disponible. [Diseño y casos de aceptación](docs/eliminacion-de-fondo.md).
 
 ## Downloader
 

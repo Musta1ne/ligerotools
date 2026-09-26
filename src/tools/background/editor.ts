@@ -101,7 +101,9 @@ function foregroundColors(mask: Uint8Array, pixels: Uint8ClampedArray) {
 }
 
 export class BackgroundEditor {
-  readonly image: HTMLImageElement
+  readonly image: HTMLImageElement | HTMLCanvasElement
+  readonly sourceWidth: number
+  readonly sourceHeight: number
   readonly width: number
   readonly height: number
   readonly previewWidth: number
@@ -120,16 +122,25 @@ export class BackgroundEditor {
   private dirty: Rect | null = null
 
   constructor(image: HTMLImageElement, preview: HTMLCanvasElement) {
-    this.image = image
-    this.width = image.naturalWidth
-    this.height = image.naturalHeight
+    this.sourceWidth = image.naturalWidth
+    this.sourceHeight = image.naturalHeight
+    const scale = Math.min(1, Math.sqrt(MAX_IMAGE_PIXELS / (this.sourceWidth * this.sourceHeight)))
+    this.width = Math.max(1, Math.floor(this.sourceWidth * scale))
+    this.height = Math.max(1, Math.floor(this.sourceHeight * scale))
+    if (scale < 1) {
+      const reduced = canvas(this.width, this.height)
+      const ctx = context(reduced)
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(image, 0, 0, this.width, this.height)
+      this.image = reduced
+    } else this.image = image
     this.previewWidth = Math.min(this.width, 1200)
     this.previewHeight = Math.max(1, Math.round(this.height * this.previewWidth / this.width))
     this.preview = preview
     this.preview.width = this.previewWidth
     this.preview.height = this.previewHeight
     this.sourcePreview = canvas(this.previewWidth, this.previewHeight)
-    context(this.sourcePreview).drawImage(image, 0, 0, this.previewWidth, this.previewHeight)
+    context(this.sourcePreview).drawImage(this.image, 0, 0, this.previewWidth, this.previewHeight)
     this.corrections = canvas(this.previewWidth, this.previewHeight)
     this.render()
   }
