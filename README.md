@@ -1,12 +1,18 @@
 # Ligero.Tools
 
-Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor`, el recortador en `/trimmer`, el quitafondos en `/quitar-fondo` y el descargador en `/downloader`. El compresor, el recortador y el quitafondos procesan archivos localmente; Downloader usa un servicio separado.
+Una aplicación web de herramientas sencillas, construida con React, TypeScript y Vite. El catálogo está en `/`, con el compresor en `/compressor`, el recortador en `/trimmer`, el convertidor en `/convertir-formatos`, el quitafondos en `/quitar-fondo` y el descargador en `/downloader`. El compresor, el recortador, el convertidor y el quitafondos procesan archivos localmente; Downloader usa un servicio separado.
 
 ## Compresor
 
 Ligero.Compressor procesa videos localmente con FFmpeg.wasm. Acepta un video de hasta 500 MB, permite elegir un presupuesto en MB decimales y descargar MP4 (H.264 + AAC cuando hay audio). La resolución se ajusta automáticamente, con un máximo de 720p; no hay selector de resolución. El objetivo es un presupuesto, no un tamaño exacto garantizado.
 
 Conserva presets, progreso, errores, cancelación y modo rápido opcional de hasta cuatro hilos. El motor del modo elegido se carga al comprimir, reutiliza una instancia entre trabajos y elimina archivos temporales y listeners. Al salir de la herramienta se cancela el trabajo, se libera el motor y se revocan las URLs de vista previa y descarga. Volver a entrar inicia un estado nuevo.
+
+## Convertidor de formatos
+
+Ligero.Converter procesa un archivo a la vez en el navegador. Acepta PNG, JPEG, WebP y SVG de hasta 30 MB y ofrece PNG, JPEG, WebP o SVG como salida distinta de la entrada. Para crear un SVG desde una imagen de píxeles usa trazado vectorial real, con controles de colores y detalle y vista previa del resultado; está pensado para logos e ilustraciones. Al rasterizar un SVG se puede elegir el ancho. JPEG permite elegir el color de fondo para zonas transparentes. Las imágenes convertidas conservan su orientación visual y omiten metadatos como ubicación y fecha.
+
+Acepta MP4, MOV, WebM, MKV y AVI de hasta 500 MB. Convierte el vídeo completo a MP4, MOV, MKV, AVI o WebM y conserva el audio si existe; también crea un GIF sin audio de un fragmento de hasta 15 segundos o extrae el sonido del vídeo completo a MP3. Admite audio MP3, WAV, M4A, AAC, FLAC, OGG y Opus de hasta 100 MB y permite convertirlo a cualquiera de esos formatos salvo el de origen. El GIF permite elegir ancho y fotogramas por segundo. JPEG, WebP, los vídeos completos y los formatos de audio con pérdida ofrecen tres niveles de calidad, sin garantía de tamaño final. El resultado depende de los códecs y la memoria disponibles en el navegador; los móviles compatibles pueden requerir archivos más pequeños. GIF animado como entrada no está admitido. [Diseño y casos de aceptación](docs/conversion-de-formatos.md).
 
 ## Quitafondos
 

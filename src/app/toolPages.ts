@@ -7,4 +7,5 @@ export const toolPages: Record<ToolId, LazyExoticComponent<ComponentType>> = {
   'video-downloader': lazy(() => import('../tools/downloader/DownloaderPage')),
   'video-trimmer': lazy(() => import('../tools/trimmer/TrimmerPage')),
   'image-background-remover': lazy(() => import('../tools/background/BackgroundPage')),
+  'format-converter': lazy(() => import('../tools/converter/ConverterPage')),
 }

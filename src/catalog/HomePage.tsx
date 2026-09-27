@@ -53,8 +53,9 @@ export function HomePage() {
       <section className="catalog-note" aria-labelledby="catalog-note-title">
         <h2 id="catalog-note-title">Una tarea. Una herramienta.</h2>
         <p>
-          Comprime o recorta un video, quita el fondo de una imagen en tu dispositivo, o pega un enlace público para descargarlo.
-          Las opciones y los límites se explican dentro de cada herramienta.
+          Comprime, recorta o convierte un video; cambia el formato de una imagen o un audio, o
+          quita el fondo de una imagen en tu dispositivo. También puedes pegar un enlace público
+          para descargarlo. Las opciones y los límites se explican dentro de cada herramienta.
         </p>
       </section>
     </>

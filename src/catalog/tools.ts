@@ -1,4 +1,4 @@
-import { Download, FileVideo, Scissors, ScanFace } from 'lucide-react'
+import { Download, FileVideo, Scissors, ScanFace, RefreshCw } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export interface ToolMetadata {
@@ -51,6 +51,16 @@ export const tools = [
       'Quita el fondo de una imagen automáticamente o con pincel y descarga un PNG transparente. Procesamiento en tu navegador.',
     category: 'Imagen',
     icon: ScanFace,
+  },
+  {
+    id: 'format-converter',
+    path: '/convertir-formatos',
+    name: 'Convertidor de formatos',
+    brandSuffix: 'Converter',
+    description:
+      'Convierte imágenes, videos y audios en tu navegador. Vectoriza logos, crea GIF o extrae MP3 de un video.',
+    category: 'Imagen, video y audio',
+    icon: RefreshCw,
   },
 ] as const satisfies readonly ToolMetadata[]
 
